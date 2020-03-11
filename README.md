@@ -89,4 +89,18 @@ Image 5: The Relay Module
 ## General tips
 
  - To look for the according pin number in Wiring Pi, you can type ``gpio readall``. The "physical" pin is the pin, we referred to, in this readme. The "wPi" pin is the pin, you should include in your function call.
- - The header file with the key-generating function is located in the file ``SerialReader/runnerc.h``.
+ - The header file with the key-generating function is located in the file ``SerialReader/runnerc.h``. Example usage in C++ (around the same in C):
+ ```cpp
+    //Params for the Firmware
+    const char **params = new const char *[10]{"0", "0", "0", "0", "C3", "C38", "0", "1", "1", "120"};
+    //Raspberry Pi Serial Port, Baud Rate, Relay GPIO Pin, USB Sleep Time, Params for the Firmware, Params Size, stable.pos File, Key Length
+    char *key = gen_key("/dev/ttyS0", 115200, 9, 5, params, 10, "stable.pos", 1024);
+    for (int i = 0; i < 1024; i++) {
+        std::cout << key[i];
+    }
+    std::cout << std::endl;
+ ```
+ - You can use the programs in the ``JavaPrograms`` folder to examine existing DRAM dumps. Usages:
+   - ``java RaspPi [DRAM Dump-Files...]``: Shows general information about the given files, like Jaccard Index, Hamming Distance etc. If no file is given, it takes every file in the current folder with the extension ``.bin`` as dump files.
+   - ``java GenerateStable [Key Size] [DRAM Dump-Files...]``: This generates a file ``stable.pos``, which is needed to extract a key out of a dump.
+   - ``java Extract [DRAM Dump-File] [stable.pos-File]``: This extracts a key out of the given dump using the given ``stable.pos`` file
