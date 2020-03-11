@@ -1,0 +1,3 @@
+/home/hyperspeeed/Dropbox/SerialReader/CMakeFiles/rebuild_cache.dir
+/home/hyperspeeed/Dropbox/SerialReader/CMakeFiles/SerialReader.dir
+/home/hyperspeeed/Dropbox/SerialReader/CMakeFiles/edit_cache.dir

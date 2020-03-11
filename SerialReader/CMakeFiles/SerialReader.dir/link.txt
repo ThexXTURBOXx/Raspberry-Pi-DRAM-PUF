@@ -1,0 +1,1 @@
+/usr/bin/arm-linux-gnueabi-g++-8  -pthread  -std=c++11 -g   CMakeFiles/SerialReader.dir/main.cpp.o CMakeFiles/SerialReader.dir/parser.cpp.o CMakeFiles/SerialReader.dir/runner.cpp.o CMakeFiles/SerialReader.dir/receiver.cpp.o  -o SerialReader -Wl,-rpath,/home/hyperspeeed/raspberry/rootfs/usr/lib /home/hyperspeeed/raspberry/rootfs/usr/lib/libwiringPi.so 

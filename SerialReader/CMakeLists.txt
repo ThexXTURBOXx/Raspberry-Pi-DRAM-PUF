@@ -1,0 +1,18 @@
+project(SerialReader)
+set(CMAKE_SYSTEM_NAME Linux)
+set(CMAKE_SYSTEM_VERSION 1)
+set(CMAKE_C_COMPILER /usr/bin/arm-linux-gnueabi-gcc-8)
+set(CMAKE_CXX_COMPILER /usr/bin/arm-linux-gnueabi-g++-8)
+cmake_minimum_required(VERSION 3.13)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+
+link_libraries(/home/hyperspeeed/raspberry/rootfs/usr/lib/libwiringPi.so)
+set(CMAKE_FIND_ROOT_PATH /home/hyperspeeed/raspberry/rootfs)
+add_executable(SerialReader main.cpp parser.cpp parser.h runner.cpp runnerc.h runner.h main.h logger.h receiver.h receiver.cpp)
+
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+
+set(CMAKE_CXX_FLAGS "-pthread ${CMAKE_CXX_FLAGS}")

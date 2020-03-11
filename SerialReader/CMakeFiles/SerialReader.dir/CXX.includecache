@@ -1,0 +1,44 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/hyperspeeed/Dropbox/SerialReader/logger.h
+iostream
+-
+
+/home/hyperspeeed/Dropbox/SerialReader/parser.h
+string
+-
+vector
+-
+
+/home/hyperspeeed/Dropbox/SerialReader/runner.cpp
+string
+-
+iostream
+-
+thread
+-
+unistd.h
+-
+iomanip
+-
+wiringSerial.h
+-
+wiringPi.h
+-
+parser.h
+/home/hyperspeeed/Dropbox/SerialReader/parser.h
+runner.h
+/home/hyperspeeed/Dropbox/SerialReader/runner.h
+logger.h
+/home/hyperspeeed/Dropbox/SerialReader/logger.h
+
+/home/hyperspeeed/Dropbox/SerialReader/runner.h
+fstream
+-
+

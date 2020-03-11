@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6"/>
+	<Project>
+		<Option title="SerialReader"/>
+		<Option makefile_is_custom="1"/>
+		<Option compiler="gcc"/>
+		<Option virtualFolders="CMake Files\;"/>
+		<Build>
+			<Target title="all">
+				<Option working_dir="/home/hyperspeeed/Dropbox/SerialReader"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 all"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rebuild_cache">
+				<Option working_dir="/home/hyperspeeed/Dropbox/SerialReader"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="SerialReader">
+				<Option output="/home/hyperspeeed/Dropbox/SerialReader/SerialReader" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/hyperspeeed/Dropbox/SerialReader"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 SerialReader"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="SerialReader/fast">
+				<Option output="/home/hyperspeeed/Dropbox/SerialReader/SerialReader" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/hyperspeeed/Dropbox/SerialReader"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 SerialReader/fast"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="edit_cache">
+				<Option working_dir="/home/hyperspeeed/Dropbox/SerialReader"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="/home/hyperspeeed/Dropbox/SerialReader/logger.h">
+			<Option target="SerialReader"/>
+		</Unit>
+		<Unit filename="/home/hyperspeeed/Dropbox/SerialReader/main.cpp">
+			<Option target="SerialReader"/>
+		</Unit>
+		<Unit filename="/home/hyperspeeed/Dropbox/SerialReader/main.h">
+			<Option target="SerialReader"/>
+		</Unit>
+		<Unit filename="/home/hyperspeeed/Dropbox/SerialReader/parser.cpp">
+			<Option target="SerialReader"/>
+		</Unit>
+		<Unit filename="/home/hyperspeeed/Dropbox/SerialReader/parser.h">
+			<Option target="SerialReader"/>
+		</Unit>
+		<Unit filename="/home/hyperspeeed/Dropbox/SerialReader/receiver.cpp">
+			<Option target="SerialReader"/>
+		</Unit>
+		<Unit filename="/home/hyperspeeed/Dropbox/SerialReader/receiver.h">
+			<Option target="SerialReader"/>
+		</Unit>
+		<Unit filename="/home/hyperspeeed/Dropbox/SerialReader/runner.cpp">
+			<Option target="SerialReader"/>
+		</Unit>
+		<Unit filename="/home/hyperspeeed/Dropbox/SerialReader/runner.h">
+			<Option target="SerialReader"/>
+		</Unit>
+		<Unit filename="/home/hyperspeeed/Dropbox/SerialReader/runnerc.h">
+			<Option target="SerialReader"/>
+		</Unit>
+		<Unit filename="/home/hyperspeeed/Dropbox/SerialReader/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\"/>
+		</Unit>
+	</Project>
+</CodeBlocks_project_file>
