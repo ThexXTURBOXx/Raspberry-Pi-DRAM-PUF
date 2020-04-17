@@ -33,7 +33,10 @@
 				<Option object_output="./"/>
 				<Option type="1"/>
 				<Option compiler="gcc"/>
-				<Compiler/>
+				<Compiler>
+					<Add directory="/home/hyperspeeed/raspberry/rootfs/usr/lib/jvm/java-1.11.0-openjdk-armhf/include"/>
+					<Add directory="/home/hyperspeeed/raspberry/rootfs/usr/lib/jvm/java-11-openjdk-armhf/include/linux"/>
+				</Compiler>
 				<MakeCommands>
 					<Build command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 SerialReader"/>
 					<CompileFile command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
@@ -47,7 +50,10 @@
 				<Option object_output="./"/>
 				<Option type="1"/>
 				<Option compiler="gcc"/>
-				<Compiler/>
+				<Compiler>
+					<Add directory="/home/hyperspeeed/raspberry/rootfs/usr/lib/jvm/java-1.11.0-openjdk-armhf/include"/>
+					<Add directory="/home/hyperspeeed/raspberry/rootfs/usr/lib/jvm/java-11-openjdk-armhf/include/linux"/>
+				</Compiler>
 				<MakeCommands>
 					<Build command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 SerialReader/fast"/>
 					<CompileFile command="/usr/bin/make -f &quot;/home/hyperspeeed/Dropbox/SerialReader/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
@@ -66,6 +72,12 @@
 				</MakeCommands>
 			</Target>
 		</Build>
+		<Unit filename="/home/hyperspeeed/Dropbox/SerialReader/drampufjni.cpp">
+			<Option target="SerialReader"/>
+		</Unit>
+		<Unit filename="/home/hyperspeeed/Dropbox/SerialReader/drampufjni.h">
+			<Option target="SerialReader"/>
+		</Unit>
 		<Unit filename="/home/hyperspeeed/Dropbox/SerialReader/logger.h">
 			<Option target="SerialReader"/>
 		</Unit>
