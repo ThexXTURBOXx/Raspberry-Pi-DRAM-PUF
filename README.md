@@ -73,6 +73,7 @@ The following has been done in a VM with Ubuntu 16.04 Xenial. Other versions cou
 4. Connect the relay's GND to pin 9, VCC to pin 4 and the IN or DATA to pin 3 (pin 3 can be changed in the function call in your program, the other ones should be any 5V or GND accordingly)
 5. Connect the receiver's and sender's pin 6 to 6 and the receiver's pin 8 to the sender's pin 10 and vice versa.
 Here is a table for the pins:
+
 | Master RPI (receiver) | Slave RPI (sender) | Relais |
 | ------ | ------ | ------ |
 | 9 |  | GND |
