@@ -36,7 +36,7 @@ chmod +x SerialReader
 
 1. You can build the firmware from source, if you'd like to do so (see next section). Else, there are pre-compiled binaries included.
 2. Copy all files from the folder ``SDCard`` onto the boot partition of a Micro SD-Card
-3. Copy ``covert-channel-code/kernel/kernel.img`` and ``covert-channel-code/rpi-open-firmware-master/build/bootcode.bin`` to the Micro SD-Card
+3. Copy ``covert-channel-code/kernel/kernel.img`` and ``covert-channel-code/rpi-open-firmware-master/build/bootcode.bin`` to the boot Partition of the Micro SD-Card as well
 
 ## Building the Sender firmware from source
 
@@ -72,7 +72,15 @@ The following has been done in a VM with Ubuntu 16.04 Xenial. Other versions cou
 3. Connect the USB-A end to one of the receiver's USB ports and the Micro USB end to the sender's USB power input.
 4. Connect the relay's GND to pin 9, VCC to pin 4 and the IN or DATA to pin 3 (pin 3 can be changed in the function call in your program, the other ones should be any 5V or GND accordingly)
 5. Connect the receiver's and sender's pin 6 to 6 and the receiver's pin 8 to the sender's pin 10 and vice versa.
-
+Here is a table for the pins:
+| Master RPI (receiver) | Slave RPI (sender) | Relais |
+| ------ | ------ | ------ |
+| 9 |  | GND |
+| 4 |   | VCC |
+| 3 |   | IN1 |
+| 6 | 6 |   |
+| 8 | 10 |   |
+| 10 | 8 |   |
 ### Pictures
 
 ![Top View](./img/top_view.jpeg?raw=true)<br>
@@ -100,7 +108,13 @@ Image 5: The Relay Module
     }
     std::cout << std::endl;
  ```
+## Use of the program
+
+ - To use the program just run SerialReader with desired options
+ 
  - You can use the programs in the ``JavaPrograms`` folder to examine existing DRAM dumps. Usages:
    - ``java RaspPi [DRAM Dump-Files...]``: Shows general information about the given files, like Jaccard Index, Hamming Distance etc. If no file is given, it takes every file in the current folder with the extension ``.bin`` as dump files.
    - ``java GenerateStable [Key Size] [DRAM Dump-Files...]``: This generates a file ``stable.pos``, which is needed to extract a key out of a dump.
    - ``java Extract [DRAM Dump-File] [stable.pos-File]``: This extracts a key out of the given dump using the given ``stable.pos`` file
+ - If there is a OutOfMemoryError, you can assign more Memory for the Java virtual machine.  it is caused by the inefficient caching of the JVM. To avoid this, I gave java more memory to extract the stable bits by executing it e.g. via
+    -``java -Xmx1G GenerateStable 128 out0.bin``:to give it 1GB of memory. You can change the 1G to 512M for example to give the JVM only 512MB. If even 1GB is not enough, you might need to copy all the binary files to another computer with a little bit more RAM to extract the stable bits. 
