@@ -55,7 +55,7 @@ The following has been done in a VM with Ubuntu 16.04 Xenial. Other versions cou
    sudo gedit /etc/environment
    # add 'gcc-linaro-4.9-2016.02-x86_64_arm-linux-gnueabihf/bin:' to the PATH
    ```
-4. Download and extract the vc4 toolchain and compile it using its README and add it to the PATH:
+4. Download and extract the vc4 toolchain and compile it according to its `README` and add it to the PATH:
    ```shell
    git clone https://github.com/itszor/vc4-toolchain
    "COMPILE"
