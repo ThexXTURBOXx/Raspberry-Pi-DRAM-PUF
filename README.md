@@ -103,7 +103,7 @@ Image 5: The Relay Module
     //Params for the Firmware
     const char **params = new const char *[10]{"0", "0", "0", "0", "C3", "C38", "0", "1", "1", "120"};
     //Raspberry Pi Serial Port, Baud Rate, Relay GPIO Pin, USB Sleep Time, Params for the Firmware, Params Size, stable.pos File, Key Length
-    char *key = gen_key("/dev/ttyS0", 115200, 9, 5, params, 10, "stable.pos", 1024);
+    char *key = gen_key("/dev/ttyS0", 115200, 8, 5, params, 10, "stable.pos", 1024);
     for (int i = 0; i < 1024; i++) {
         std::cout << key[i];
     }
@@ -111,11 +111,14 @@ Image 5: The Relay Module
  ```
 ## Use of the program
 
- - To use the program just run SerialReader with desired options
- 
+ - To use the program just run SerialReader with desired options, e.g.:
+ ```shell
+ ./SerialReader -s /dev/ttyS0 -b 115200 -r 8 -t 5 -m 10 -o dump -p 0 -p 0 -p 0 -p 0 -p C3 -p C4 -p 0 -p 1 -p 1 -p 120
+ ```
+
  - You can use the programs in the ``JavaPrograms`` folder to examine existing DRAM dumps. Usages:
    - ``java RaspPi [DRAM Dump-Files...]``: Shows general information about the given files, like Jaccard Index, Hamming Distance etc. If no file is given, it takes every file in the current folder with the extension ``.bin`` as dump files.
    - ``java GenerateStable [Key Size] [DRAM Dump-Files...]``: This generates a file ``stable.pos``, which is needed to extract a key out of a dump.
    - ``java Extract [DRAM Dump-File] [stable.pos-File]``: This extracts a key out of the given dump using the given ``stable.pos`` file
  - If there is a OutOfMemoryError, you can assign more Memory for the Java virtual machine.  it is caused by the inefficient caching of the JVM. To avoid this, I gave java more memory to extract the stable bits by executing it e.g. via
-    -``java -Xmx1G GenerateStable 128 out0.bin``:to give it 1GB of memory. You can change the 1G to 512M for example to give the JVM only 512MB. If even 1GB is not enough, you might need to copy all the binary files to another computer with a little bit more RAM to extract the stable bits. 
+    -``java -Xmx1G GenerateStable 128 out0.bin``:to give it 1GB of memory. You can change the 1G to 512M for example to give the JVM only 512MB. If even 1GB is not enough, you might need to copy all the binary files to another computer with a little bit more RAM to extract the stable bits.
