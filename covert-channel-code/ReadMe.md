@@ -135,10 +135,11 @@
    ```
    PUF test (bare-metal-code)
    Choose mode:
-    0: test all address(bit)
-    1: test all address(cell)
-    2: test all address(bitflip summary)
-    3: Etract at Interval:3
+    0: test all addresses (bit)
+    1: test all addresses (cell)
+    2: test all addresses (bitflip summary)
+    3: extract at interval
+    4: custom set test:3
    Extract PUF at Intervals
    ```
 
@@ -155,14 +156,14 @@
 4. Set memory location and the initial value:
 
    ```
-   Input 8-digit puf start address:0xC3000000
+   Input 8-digit puf start address:0xC3
    PUF start address = 0xC3000000
    
    Input 8-digit puf end address:0xDFFFFFFF
    PUF end address = 0xDFFFFFFF
    
-   Input Init value(0/1):0x0
-   PUF init value = 0x00000000
+   Input Init value(0/1):0xaa0000ff
+   PUF init value = 0xaa0000ff
    ```
 
 5. Choose the function you want to run during the decay time
@@ -184,10 +185,10 @@
 6. Set the function run interval and decay duration
 
    ```
-   Input 4-digit function execution interval (freq=n*50us): 0000
+   Input 4-digit function execution interval (freq=n*50us): 0
    Function execution interval = 0 us
    
-   Input 4-digit decay time(s): 0060
+   Input 4-digit decay time(s): 60
    decaytime = 60 s
    ```
 
