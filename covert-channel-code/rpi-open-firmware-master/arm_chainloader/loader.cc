@@ -134,6 +134,13 @@ struct LoaderImpl {
         }
         logf("Boot partition mounted!\n");
 
+        /* read the kernel as a function pointer at fixed address */
+        uint8_t *zImage = reinterpret_cast<uint8_t *>(KERNEL_LOAD_ADDRESS);
+        kernel = reinterpret_cast<linux_t>(zImage);
+
+        size_t ksize = read_file(loadPath, zImage, false);
+        logf("Kernel Image loaded at 0x%X\n", (unsigned int) kernel);
+
         /* read the command-line null-terminated */
         uint8_t *cmdline;
         size_t cmdlen = read_file("cmdline.txt", cmdline);
@@ -145,13 +152,6 @@ struct LoaderImpl {
 
         /* once the fdt contains the cmdline, it is not needed */
         delete[] cmdline;
-
-        /* read the kernel as a function pointer at fixed address */
-        uint8_t *zImage = reinterpret_cast<uint8_t *>(KERNEL_LOAD_ADDRESS);
-        kernel = reinterpret_cast<linux_t>(zImage);
-
-        size_t ksize = read_file("kernel.img", zImage, false);
-        logf("Kernel Image loaded at 0x%X\n", (unsigned int) kernel);
 
         /* flush the cache */
         logf("Flushing....\n")
