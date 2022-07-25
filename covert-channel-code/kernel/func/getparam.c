@@ -60,10 +60,12 @@ uint32_t getinitvalue() {
     while (1) {
         unsigned char temp = uart_getc();
         uart_putc(temp);
-        if (temp == 48) {
-            result = 0;
-        } else if (temp == 49) {
-            result = 0xffffffff;
+        if (temp >= '0' && temp <= '9') {
+            result = (result << 4) | (temp - '0');
+        } else if (temp >= 'a' && temp <= 'f') {
+            result = (result << 4) | (temp - 'a' + 10);
+        } else if (temp >= 'A' && temp <= 'F') {
+            result = (result << 4) | (temp - 'A' + 10);
         } else if (temp == 13) {
             return result;
         }
