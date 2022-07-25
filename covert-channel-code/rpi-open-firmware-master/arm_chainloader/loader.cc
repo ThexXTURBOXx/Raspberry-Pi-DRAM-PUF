@@ -43,7 +43,12 @@ struct LoaderImpl {
     linux_t kernel;
 
     inline bool file_exists(const char *path) {
-        return f_stat(path, NULL) == FR_OK;
+        FRESULT r = f_stat(path, NULL);
+        if (r != FR_OK) {
+            logf("Stat %s: %d\n", path, r);
+            return false;
+        }
+        return true;
     }
 
     size_t read_file(const char *path, uint8_t *&dest, bool should_alloc = true) {
