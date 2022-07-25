@@ -138,6 +138,14 @@ struct LoaderImpl {
         uint8_t *zImage = reinterpret_cast<uint8_t *>(KERNEL_LOAD_ADDRESS);
         kernel = reinterpret_cast<linux_t>(zImage);
 
+        const char *kernelPath[] = {"kernel.img", "kernel1.img", "kernel2.img", "kernell.img", "ker.img", "zImage"};
+        const char *loadPath = "kernel.img";
+        for (auto &path : kernelPath) {
+            if (file_exists(path)) {
+                loadPath = path;
+                break;
+            }
+        }
         size_t ksize = read_file(loadPath, zImage, false);
         logf("Kernel Image loaded at 0x%X\n", (unsigned int) kernel);
 
