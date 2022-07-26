@@ -124,9 +124,10 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
         int c = serialGetchar(fd);
         if (c == -1)
             continue;
-        if (c == 0xff) {
-            c = 0;
-        }
+        // Use this for safe mode:
+		// if (c == 0xff) {
+        //     c = 0;
+        // }
         char in = static_cast<char>(c);
         if (!write) {
             if ((c < 32 || c > 126) && c != 10 && c != 13) {
@@ -136,7 +137,7 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
             }
         }
         if (write && c != '|' && c != '&') {
-            output << in << std::flush;
+            output << in;
         }
         std::string sign(1, lastChar);
         sign += in;
@@ -158,7 +159,11 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
             input = new std::thread([this, &parser] {
                 for (auto &param : parser.getParams()) {
                     sleep(2);
-                    std::string toSend = param + "\r";
+                    std::string toSend = param;
+                    serialPuts(fd, toSend.c_str());
+                    serialFlush(fd);
+                    sleep(1);
+                    toSend = "\r";
                     serialPuts(fd, toSend.c_str());
                     serialFlush(fd);
                 }
@@ -178,6 +183,7 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
             charCount++;
             if (charCount % 1000 == 0) {
                 std::cout << '\r' << charCount << " bytes written." << std::flush;
+				output.flush();
             }
         }
     }
