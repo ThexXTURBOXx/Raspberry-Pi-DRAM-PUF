@@ -59,14 +59,17 @@ uint32_t getinitvalue() {
     uint32_t result = 0;
     while (1) {
         unsigned char temp = uart_getc();
-        uart_putc(temp);
         if (temp >= '0' && temp <= '9') {
+            uart_putc(temp);
             result = (result << 4) | (temp - '0');
         } else if (temp >= 'a' && temp <= 'f') {
+            uart_putc(temp);
             result = (result << 4) | (temp - 'a' + 10);
         } else if (temp >= 'A' && temp <= 'F') {
+            uart_putc(temp);
             result = (result << 4) | (temp - 'A' + 10);
         } else if (temp == 13) {
+            uart_putc(temp);
             return result;
         }
     }
