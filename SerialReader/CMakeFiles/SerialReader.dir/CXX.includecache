@@ -1,4 +1,4 @@
-#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
 
 #IncludeRegexScan: ^.*$
 
@@ -6,17 +6,45 @@
 
 #IncludeRegexTransform: 
 
-/home/hyperspeeed/Dropbox/SerialReader/logger.h
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/logger.h
 iostream
 -
 
-/home/hyperspeeed/Dropbox/SerialReader/parser.h
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/main.cpp
+iostream
+-
+parser.h
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/parser.h
+runner.h
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/runner.h
+receiver.h
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/receiver.h
+runnerc.h
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/runnerc.h
+
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/parser.cpp
+args.hxx
+-
+iostream
+-
+memory
+-
+parser.h
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/parser.h
+
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/parser.h
 string
 -
 vector
 -
 
-/home/hyperspeeed/Dropbox/SerialReader/runner.cpp
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/receiver.cpp
+runnerc.h
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/runnerc.h
+
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/receiver.h
+
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/runner.cpp
 string
 -
 iostream
@@ -32,13 +60,19 @@ wiringSerial.h
 wiringPi.h
 -
 parser.h
-/home/hyperspeeed/Dropbox/SerialReader/parser.h
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/parser.h
 runner.h
-/home/hyperspeeed/Dropbox/SerialReader/runner.h
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/runner.h
 logger.h
-/home/hyperspeeed/Dropbox/SerialReader/logger.h
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/logger.h
 
-/home/hyperspeeed/Dropbox/SerialReader/runner.h
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/runner.h
 fstream
 -
+
+/home/nico/linuxvm/raspberry-pi-dram-puf/SerialReader/runnerc.h
+
+/home/nico/raspberry/rootfs/usr/include/wPi/wiringPi.h
+
+/home/nico/raspberry/rootfs/usr/include/wPi/wiringSerial.h
 
