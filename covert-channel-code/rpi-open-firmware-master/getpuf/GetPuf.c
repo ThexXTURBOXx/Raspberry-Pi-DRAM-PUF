@@ -330,7 +330,10 @@ static void puf_read_all(int safe_mode, unsigned long start_addr, unsigned long 
 			//if(sum_flip!=0)
 			//{
                 puf_cell++;
-				printf("%c", (unsigned char)puf_read_val);
+				printf("%c%c%c%c", (unsigned char)(puf_read_val>>24),
+				                   (unsigned char)(puf_read_val>>16),
+								   (unsigned char)(puf_read_val>>8),
+								   (unsigned char)puf_read_val);
 			//}
 		}
 	}
