@@ -96,7 +96,7 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
     count++;
     log_data("Cutting off USB Power...", log);
     digitalWrite(parser.getUSBPort(), HIGH);
-    sleep(parser.getUSBSleepTime());
+    std::this_thread::sleep_for(std::chrono::seconds(parser.getUSBSleepTime()));
     log_data("Turning on USB Power...", log);
     digitalWrite(parser.getUSBPort(), LOW);
     log_data("Starting " + std::to_string(count) + "th measurement...", log);
@@ -158,16 +158,20 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
         } else if (LOADED == sign) {
             input = new std::thread([this, &parser] {
                 for (auto &param : parser.getParams()) {
-                    sleep(2);
+                    while (!expectInput) { /* wait */ }
+                    expectInput = false;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
                     std::string toSend = param;
                     serialPuts(fd, toSend.c_str());
                     serialFlush(fd);
-                    sleep(1);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
                     toSend = "\r";
                     serialPuts(fd, toSend.c_str());
                     serialFlush(fd);
                 }
             });
+        } else if (ASK_INPUT == sign) {
+            expectInput = true;
         } else if (FINISHED == sign) {
             interrupt = true;
         } else if (PANIC == sign) {

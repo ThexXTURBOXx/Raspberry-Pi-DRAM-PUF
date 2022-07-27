@@ -16,6 +16,7 @@ namespace SerialReader {
         std::ofstream log;
 
         const std::string LOADED = "$|";
+        const std::string ASK_INPUT = "|:";
         const std::string FINISHED = "|$";
         const std::string START = "&|";
         const std::string END = "|&";
@@ -26,6 +27,7 @@ namespace SerialReader {
 
         bool loop(Parser &parser, std::ostream &output, int &count);
 
+       volatile bool expectInput = false;
     };
 
 }

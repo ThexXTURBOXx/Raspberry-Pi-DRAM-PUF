@@ -3,7 +3,7 @@
 #include "getparam.c"
 
 #define MENU_SELECT "Select the function to run in the delay time:\r\n \
-0: no operation\r\n 1: add\r\n 2: div:"
+0: no operation\r\n 1: add\r\n 2: div|: "
 
 void print_hex(uint32_t a, int b) {
     for (int i = b - 1; i >= 0; i--) {
@@ -174,32 +174,32 @@ void puf_read_itvl(uint32_t start_addr, uint32_t end_addr, uint32_t add_mode) {
  * P.S. puf_init_value = 0
 **/
 void TestAllAddress() {
-    uart_puts("Choose address mode: 0:brc 1:rbc: ");
+    uart_puts("Choose address mode: 0:brc 1:rbc|: ");
     int addmode = getaddmode();
     mailbox_write(addmode);
     delay_ms(50);
 
-    uart_puts("Safe mode: 0:off 1:on: ");
+    uart_puts("Safe mode: 0:off 1:on|: ");
     int safemode = getaddmode();
     mailbox_write(safemode);
     delay_ms(50);
 
-    uart_puts("Choose function running location: 0:CPU 1:GPU: ");
+    uart_puts("Choose function running location: 0:CPU 1:GPU|: ");
     int funcloc = getaddmode();
     mailbox_write(funcloc);
     delay_ms(50);
 
-    uart_puts("Input 8-digit puf start address: 0x");
+    uart_puts("Input 8-digit puf start address|: 0x");
     int stradd = getaddress();
     mailbox_write(stradd);
     delay_ms(50);
 
-    uart_puts("Input 8-digit puf end address: 0x");
+    uart_puts("Input 8-digit puf end address|: 0x");
     int endadd = getaddress();
     mailbox_write(endadd);
     delay_ms(50);
 
-    uart_puts("Input Init value: 0x");
+    uart_puts("Input Init value|: 0x");
     mailbox_write(getinitvalue());
     delay_ms(50);
 
@@ -208,12 +208,12 @@ void TestAllAddress() {
     mailbox_write(dcyfunc);
     delay_ms(50);
 
-    uart_puts("Input function execution interval (freq=n*50us): ");
+    uart_puts("Input function execution interval (freq=n*50us)|: ");
     int nfreq = getfuncfreq();
     mailbox_write(nfreq);
     delay_ms(50);
 
-    uart_puts("Input decay time(s): ");
+    uart_puts("Input decay time(s)|: ");
     int decaytime = getdecaytime();
     mailbox_write(decaytime);
     delay_ms(50);
@@ -227,32 +227,32 @@ void TestAllAddress() {
  * Set: puf_start_address, puf_init_value, puf_size, decay_time, CPU_function
 **/
 void TestPuf() {
-    uart_puts("Choose address mode: 0:brc 1:rbc: ");
+    uart_puts("Choose address mode: 0:brc 1:rbc|: ");
     int addmode = getaddmode();
     mailbox_write(addmode);
     delay_ms(50);
 
-    uart_puts("Safe mode: 0:off 1:on: ");
+    uart_puts("Safe mode: 0:off 1:on|: ");
     int safemode = getaddmode();
     mailbox_write(safemode);
     delay_ms(50);
 
-    uart_puts("Choose function running location: 0:CPU 1:GPU: ");
+    uart_puts("Choose function running location: 0:CPU 1:GPU|: ");
     int funcloc = getaddmode();
     mailbox_write(funcloc);
     delay_ms(50);
 
-    uart_puts("Input 8-digit puf start address: 0x");
+    uart_puts("Input 8-digit puf start address|: 0x");
     int stradd = getaddress();
     mailbox_write(stradd);
     delay_ms(50);
 
-    uart_puts("Input 8-digit puf end address: 0x");
+    uart_puts("Input 8-digit puf end address|: 0x");
     int endadd = getaddress();
     mailbox_write(endadd);
     delay_ms(50);
 
-    uart_puts("Input Init value: 0x");
+    uart_puts("Input Init value|: 0x");
     mailbox_write(getinitvalue());
     delay_ms(50);
 
@@ -261,12 +261,12 @@ void TestPuf() {
     mailbox_write(dcyfunc);
     delay_ms(50);
 
-    uart_puts("Input function execution interval (freq=n*50us): ");
+    uart_puts("Input function execution interval (freq=n*50us)|: ");
     int nfreq = getfuncfreq();
     mailbox_write(nfreq);
     delay_ms(50);
 
-    uart_puts("Input decay time(s): ");
+    uart_puts("Input decay time(s)|: ");
     int decaytime = getdecaytime();
     mailbox_write(decaytime);
     delay_ms(50);
@@ -280,32 +280,32 @@ void TestPuf() {
 **/
 void TestCustom() {
     uart_puts("Starting custom extractor...");
-    //uart_puts("Choose address mode: 0:brc 1:rbc: ");
+    //uart_puts("Choose address mode: 0:brc 1:rbc|: ");
     int addmode = 0;
     mailbox_write(addmode);
     delay_ms(50);
 
-    //uart_puts("Safe mode: 0:off 1:on: ");
+    //uart_puts("Safe mode: 0:off 1:on|: ");
     int safemode = 0;
     mailbox_write(safemode);
     delay_ms(50);
 
-    //uart_puts("Choose function running location: 0:CPU 1:GPU: ");
+    //uart_puts("Choose function running location: 0:CPU 1:GPU|: ");
     int funcloc = 0;
     mailbox_write(funcloc);
     delay_ms(50);
 
-    //uart_puts("Input 8-digit puf start address: 0x");
+    //uart_puts("Input 8-digit puf start address|: 0x");
     int stradd = 0xC3000000;
     mailbox_write(stradd);
     delay_ms(50);
 
-    //uart_puts("Input 8-digit puf end address: 0x");
+    //uart_puts("Input 8-digit puf end address|: 0x");
     int endadd = 0xC4000000;
     mailbox_write(endadd);
     delay_ms(50);
 
-    //uart_puts("Input Init value: 0x");
+    //uart_puts("Input Init value|: 0x");
     mailbox_write(0x00000000);
     delay_ms(50);
 
@@ -314,12 +314,12 @@ void TestCustom() {
     mailbox_write(dcyfunc);
     delay_ms(50);
 
-    //uart_puts("Input function execution interval (freq=n*50us): ");
+    //uart_puts("Input function execution interval (freq=n*50us)|: ");
     int nfreq = 1;
     mailbox_write(nfreq);
     delay_ms(50);
 
-    //uart_puts("Input decay time(s): ");
+    //uart_puts("Input decay time(s)|: ");
     int decaytime = 600;
     mailbox_write(decaytime);
     delay_ms(50);
@@ -335,32 +335,32 @@ void TestCustom() {
  * P.S. puf_size=1024*4byte(32bit, 1 row)
 **/
 void TestOneRow() {
-    uart_puts("Choose address mode: 0:brc 1:rbc: ");
+    uart_puts("Choose address mode: 0:brc 1:rbc|: ");
     int addmode = getaddmode();
     mailbox_write(addmode);
     delay_ms(50);
 
-    uart_puts("Safe mode: 0:off 1:on: ");
+    uart_puts("Safe mode: 0:off 1:on|: ");
     int safemode = getaddmode();
     mailbox_write(safemode);
     delay_ms(50);
 
-    uart_puts("Choose function running location: 0:CPU 1:GPU: ");
+    uart_puts("Choose function running location: 0:CPU 1:GPU|: ");
     int funcloc = getaddmode();
     mailbox_write(funcloc);
     delay_ms(50);
 
-    uart_puts("Input 8-digit puf start address: 0x");
+    uart_puts("Input 8-digit puf start address|: 0x");
     int stradd = getaddress();
     mailbox_write(stradd);
     delay_ms(50);
 
-    uart_puts("Input 8-digit puf end address: 0x");
+    uart_puts("Input 8-digit puf end address|: 0x");
     int endadd = getaddress();
     mailbox_write(endadd);
     delay_ms(50);
 
-    uart_puts("Input Init value: 0x");
+    uart_puts("Input Init value|: 0x");
     mailbox_write(getinitvalue());
     delay_ms(50);
 
@@ -369,12 +369,12 @@ void TestOneRow() {
     mailbox_write(dcyfunc);
     delay_ms(50);
 
-    uart_puts("Input function execution interval (freq=n*50us): ");
+    uart_puts("Input function execution interval (freq=n*50us)|: ");
     int nfreq = getfuncfreq();
     mailbox_write(nfreq);
     delay_ms(50);
 
-    uart_puts("Input decay time(s): ");
+    uart_puts("Input decay time(s)|: ");
     int decaytime = getdecaytime();
     mailbox_write(decaytime);
     delay_ms(50);
@@ -390,32 +390,32 @@ void TestOneRow() {
  * P.S. Test one row for each interval
 **/
 void TestAtInterval() {
-    uart_puts("Choose address mode: 0:brc 1:rbc: ");
+    uart_puts("Choose address mode: 0:brc 1:rbc|: ");
     int addmode = getaddmode();
     mailbox_write(addmode);
     delay_ms(50);
 
-    uart_puts("Safe mode: 0:off 1:on: ");
+    uart_puts("Safe mode: 0:off 1:on|: ");
     int safemode = getaddmode();
     mailbox_write(safemode);
     delay_ms(50);
 
-    uart_puts("Choose function running location: 0:CPU 1:GPU: ");
+    uart_puts("Choose function running location: 0:CPU 1:GPU|: ");
     int funcloc = getaddmode();
     mailbox_write(funcloc);
     delay_ms(50);
 
-    uart_puts("Input 8-digit puf start address: 0x");
+    uart_puts("Input 8-digit puf start address|: 0x");
     int stradd = getaddress();
     mailbox_write(stradd);
     delay_ms(50);
 
-    uart_puts("Input 8-digit puf end address: 0x");
+    uart_puts("Input 8-digit puf end address|: 0x");
     int endadd = getaddress();
     mailbox_write(endadd);
     delay_ms(50);
 
-    uart_puts("Input Init value: 0x");
+    uart_puts("Input Init value|: 0x");
     mailbox_write(getinitvalue());
     delay_ms(50);
 
@@ -424,12 +424,12 @@ void TestAtInterval() {
     mailbox_write(dcyfunc);
     delay_ms(50);
 
-    uart_puts("Input function execution interval (freq=n*50us): ");
+    uart_puts("Input function execution interval (freq=n*50us)|: ");
     int nfreq = getfuncfreq();
     mailbox_write(nfreq);
     delay_ms(50);
 
-    uart_puts("Input decay time(s): ");
+    uart_puts("Input decay time(s)|: ");
     int decaytime = getdecaytime();
     mailbox_write(decaytime);
     delay_ms(50);
