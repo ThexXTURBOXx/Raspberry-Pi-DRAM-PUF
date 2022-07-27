@@ -1,7 +1,5 @@
 .idea/
 .vscode/
-build/
-b/
 cmake-build-debug/
 CMakeFiles/
 cmake_install.cmake

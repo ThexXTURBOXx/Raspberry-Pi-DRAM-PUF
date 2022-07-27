@@ -209,3 +209,8 @@ DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void* buff) {
 	}
 	return RES_PARERR;
 }
+
+DRESULT disk_write (BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count) {
+	// TODO: Implement
+	return (DRESULT)0;
+}
