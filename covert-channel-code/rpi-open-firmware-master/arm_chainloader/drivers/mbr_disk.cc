@@ -96,6 +96,11 @@ struct MbrImpl {
 		return read_block(volume, sector, reinterpret_cast<uint32_t*>(dest_buffer));
 	}
 
+	template <typename T>
+	inline bool write_block(uint8_t volume, uint32_t sector, T* src_buffer) {
+		return write_block(volume, sector, reinterpret_cast<const uint32_t*>(src_buffer));
+	}
+
 	inline unsigned int get_block_size() {
 		return mmc->block_size;
 	}
@@ -116,6 +121,18 @@ struct MbrImpl {
 			return false;
 
 		return mmc->read_block(p.part_start + sector, buf);
+	}
+
+	bool write_block(uint8_t volume, uint32_t sector, const uint32_t* buf) {
+		if (volume > 3)
+			return false;
+
+		MbrPartition& p = mbr->mbr_part[volume];
+
+		if (p.part_typ == 0)
+			return false;
+
+		return mmc->write_block(p.part_start + sector, buf);
 	}
 
 	void read_mbr() {
@@ -182,9 +199,18 @@ DSTATUS disk_status (BYTE pdrv) {
 	return disk_initialize(pdrv);
 }
 
-DRESULT disk_read (BYTE pdrv, BYTE* buff, DWORD sector, UINT count) {
+DRESULT disk_read (BYTE pdrv, BYTE* buff, LBA_t sector, UINT count) {
 	while (count--) {
 		g_MbrDisk.read_block(pdrv, sector, buff);
+		sector++;
+		buff += g_MbrDisk.get_block_size();
+	}
+	return (DRESULT)0;
+}
+
+DRESULT disk_write (BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count) {
+	while (count--) {
+		g_MbrDisk.write_block(pdrv, sector, buff);
 		sector++;
 		buff += g_MbrDisk.get_block_size();
 	}
@@ -208,9 +234,4 @@ DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void* buff) {
 		return (DRESULT)0;
 	}
 	return RES_PARERR;
-}
-
-DRESULT disk_write (BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count) {
-	// TODO: Implement
-	return (DRESULT)0;
 }

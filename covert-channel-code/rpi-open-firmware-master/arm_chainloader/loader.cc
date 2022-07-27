@@ -80,6 +80,20 @@ struct LoaderImpl {
         return len;
     }
 
+    size_t write_file(const char *path, uint8_t *&src, unsigned int len) {
+        /* read entire file into buffer */
+        FIL fp;
+        FRESULT res = f_open(&fp, path, FA_WRITE | FA_CREATE_ALWAYS);
+
+        logf("Opened file %s with code %d\n", path, res);
+        logf("%s: writing %d bytes from 0x%X ...\n", path, len, (unsigned int) src);
+
+        f_write(&fp, src, len, &len);
+        f_close(&fp);
+
+        return len;
+    }
+
     uint8_t *load_fdt(const char *filename, uint8_t *cmdline) {
         /* read device tree blob */
         uint8_t *fdt = reinterpret_cast<uint8_t *>(DTB_LOAD_ADDRESS);
@@ -148,6 +162,10 @@ struct LoaderImpl {
         }
         size_t ksize = read_file(loadPath, zImage, false);
         logf("Kernel Image loaded at 0x%X\n", (unsigned int) kernel);
+
+        /* TEST FILE WRITE */
+        //size_t wrsz = write_file("testfile.txt", zImage, 128);
+        //logf("size written: %lu\n", wrsz);
 
         /* read the command-line null-terminated */
         uint8_t *cmdline;

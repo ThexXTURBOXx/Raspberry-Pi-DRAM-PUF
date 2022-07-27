@@ -311,6 +311,25 @@ struct BCM2708SDHost : BlockDevice {
 		return true;
 	}
 
+//#define DUMP_WRITE
+
+	bool wait_for_fifo_write_access(uint32_t timeout = 100000) {
+		// TODO: How to do this?
+		/*uint32_t t = timeout;
+
+		while ((SH_HSTS & SH_HSTS_DATA_FLAG_SET) == 0) {
+			if (t == 0) {
+				putchar('\n');
+				logf("ERROR: no FIFO data, timed out after %ldus!\n", timeout)
+				return false;
+			}
+			t--;
+			udelay(10);
+		}*/
+
+		return true;
+	}
+
 	void drain_fifo() {
 		/* fuck me with a rake ... gently */
 
@@ -365,7 +384,7 @@ struct BCM2708SDHost : BlockDevice {
 				break;
 			}
 
-			uint32_t hsts_err = SH_HSTS & SDHSTS_ERROR_MASK;
+			hsts_err = SH_HSTS & SDHSTS_ERROR_MASK;
 			if (hsts_err) {
 				logf("ERROR: transfer error on FIFO word %d: 0x%x\n", i, SH_HSTS);
 				break;
@@ -396,6 +415,78 @@ struct BCM2708SDHost : BlockDevice {
 #ifdef DUMP_READ
 		if (buf)
 			logf("Completed read for %d\n", sector);
+#endif
+		return true;
+	}
+
+
+
+	virtual bool write_block(uint32_t sector, const uint32_t* buf) override {
+		// TODO: How to do this?
+		if (!card_ready)
+			panic("card not ready");
+
+		if (!is_high_capacity)
+			sector <<= 9;
+
+		/* drain junk from FIFO */
+		drain_fifo();
+
+		/* enter WRITE mode */
+		send_raw(MMC_WRITE_BLOCK_MULTIPLE | SH_CMD_WRITE_CMD_SET, sector);
+
+		int i;
+		uint32_t hsts_err = 0;
+
+#ifdef DUMP_WRITE
+		if (buf)
+			logf("Writing %d bytes to sector %d using FIFO ...\n", block_size, sector);
+#endif
+
+#ifdef DUMP_WRITE
+		if (buf)
+			printf("----------------------------------------------------\n");
+#endif
+
+		/* drain useful data from FIFO */
+		for (i = 0; i < 128; i++) {
+			/* wait for FIFO */
+			if (!wait_for_fifo_write_access()) {
+				break;
+			}
+
+			/*hsts_err = SH_HSTS & SDHSTS_ERROR_MASK;
+			if (hsts_err) {
+				logf("ERROR: transfer error on FIFO word %d: 0x%x\n", i, SH_HSTS);
+				break;
+			}*/
+
+
+			if (buf) {
+				volatile uint32_t data = *(buf++);
+
+#ifdef DUMP_WRITE
+				printf("%08x ", data);
+#endif
+				SH_DATA = data;
+			}
+		}
+
+		send_raw(MMC_STOP_TRANSMISSION | SH_CMD_BUSY_CMD_SET);
+
+#ifdef DUMP_WRITE
+		if (buf)
+			printf("\n----------------------------------------------------\n");
+#endif
+
+		if (hsts_err) {
+			logf("ERROR: Transfer error, status: 0x%x\n", SH_HSTS);
+			return false;
+		}
+
+#ifdef DUMP_WRITE
+		if (buf)
+			logf("Completed write for %d\n", sector);
 #endif
 		return true;
 	}
