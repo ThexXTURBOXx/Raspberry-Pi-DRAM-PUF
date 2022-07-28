@@ -411,7 +411,7 @@ void get_puf_param(uint32_t msg)
 		for (int i = 1; max_measures <= 0 || i <= max_measures; ++i) {
 			// Now we have all the parameters
 			// Just continue measuring
-            printf("Starting %dth measurement...", i);
+            printf("Starting %dth measurement...\n", i);
 			execute_puf(msg);
 		}
 	}

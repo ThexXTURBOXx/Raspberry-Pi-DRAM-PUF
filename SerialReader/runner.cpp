@@ -148,8 +148,10 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
         sign += in;
         if (START == sign) {
             write = true;
-            input->join();
-            delete input;
+            if (input != nullptr) {
+                input->join();
+                delete input;
+            }
         } else if (END == sign) {
             write = false;
             log_data(std::to_string(charCount) + " bytes in total written.", log);
