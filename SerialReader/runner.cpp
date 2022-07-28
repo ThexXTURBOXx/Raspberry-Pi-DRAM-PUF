@@ -93,13 +93,12 @@ SerialReader::Runner::Runner(const char *port, int usb, int baud) : fd(serialOpe
 
 bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count) {
     bool running = true;
-    count++;
     log_data("Cutting off USB Power...", log);
     digitalWrite(parser.getUSBPort(), HIGH);
     std::this_thread::sleep_for(std::chrono::seconds(parser.getUSBSleepTime()));
     log_data("Turning on USB Power...", log);
     digitalWrite(parser.getUSBPort(), LOW);
-    log_data("Starting " + std::to_string(count) + "th measurement...", log);
+    log_data("Starting measurement...", log);
     char lastChar = ' ';
     bool write = false;
     volatile bool interrupt = false;
@@ -174,9 +173,9 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
         } else if (ASK_INPUT == sign) {
             expectInput = true;
         } else if (FINISHED == sign) {
+            count++;
             interrupt = true;
         } else if (PANIC == sign) {
-            count--;
             interrupt = true;
             output.flush();
             if (auto *o = dynamic_cast<std::ofstream *>(&output)) {

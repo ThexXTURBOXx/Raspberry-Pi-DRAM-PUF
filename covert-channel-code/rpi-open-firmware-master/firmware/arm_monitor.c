@@ -57,7 +57,7 @@ bool handle_property_tag(struct tagged_packet *packet) {
 }
 
 unsigned int addmode, safemode, bank, row, col, mode, address, funcloc, dcyfunc, nfreq;
-unsigned int stradd, endadd, initvalue, pufsize, decaytime, cputemp, interval;
+unsigned int stradd, endadd, initvalue, pufsize, decaytime, cputemp, interval, max_measures;
 
 int getmode(uint32_t msg)
 {
@@ -125,6 +125,12 @@ void get_func_freq(uint32_t msg)
 {
 	nfreq=msg;
 	printf("\nFunction execution interval = %d us\n\n", (nfreq*50));
+}
+
+void get_max_measures(uint32_t msg)
+{
+	max_measures=msg;
+	printf("\nAmount of measurements = %d\n\n", (max_measures));
 }
 
 void cpu_code(uint32_t msg)
@@ -221,160 +227,7 @@ void brc_getdecaytime(uint32_t msg)
 	puf_extract_brc(stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);
 }
 
-int time=0;
-/**
- * flag_m: Mark workmode_set_status
- * flag_mm: Mark puf_extract_status
-**/
-bool flag_m=0,flag_mm=0,puf_param_mode=0;
 int modet=0;
-void get_puf_param(uint32_t msg)
-{
-	// If init values aren't set for some reason
-	if (modet < 0 || time < 0 || time > 9) {
-		time=0;
-		flag_m=0;
-		flag_mm=0;
-		modet=0;
-	}
-	puf_param_mode=1;
-
-	// Respond to kernel
-	if (flag_m==0)
-	{
-		modet=getmode(msg);
-	}
-	else if (modet==0 && flag_m==1 && flag_mm==0)
-	{
-		time++;
-		switch (time%9)
-		{
-			case  1: get_address_mode(msg);
-					 break;
-            case  2: get_safe_mode(msg);
-                     break;
-			case  3: get_func_loc(msg);
-					 break;
-			case  4: all_start_address(msg);
-					 break;
-			case  5: all_end_address(msg);
-					 break;
-			case  6: all_getinitvalue(msg);
-					 break;
-			case  7: get_dcy_func(msg);
-					 break;
-			case  8: get_func_freq(msg);
-					 break;
-			case  0: all_getdecaytime(msg);
-					 flag_mm=1;
-					 time=0;
-					 puf_param_mode=0;
-					 break;
-			default: break;
-		}	
-	}
-	else if (modet==1 && flag_m==1 && flag_mm==0)
-	{
-		time++;
-		switch (time%9)
-		{
-			case  1: get_address_mode(msg);
-					 break;
-            case  2: get_safe_mode(msg);
-                     break;
-			case  3: get_func_loc(msg);
-					 break;
-			case  4: all_start_address(msg);
-					 break;
-			case  5: all_end_address(msg);
-					 break;
-			case  6: all_getinitvalue(msg);
-					 break;
-			case  7: get_dcy_func(msg);
-					 break;
-			case  8: get_func_freq(msg);
-					 break;
-			case  0: ext_getdecaytime(msg);
-					 flag_mm=1;
-					 time=0;
-					 puf_param_mode=0;
-					 break;
-			default: break;
-		}	
-	}
-	else if (modet==2 && flag_m==1 && flag_mm==0)
-	{
-		time++;
-		switch (time%9)
-		{
-			case  1: get_address_mode(msg);
-					 break;
-            case  2: get_safe_mode(msg);
-                     break;
-			case  3: get_func_loc(msg);
-					 break;
-			case  4: all_start_address(msg);
-					 break;
-			case  5: all_end_address(msg);
-					 break;
-			case  6: all_getinitvalue(msg);
-					 break;
-			case  7: get_dcy_func(msg);
-					 break;
-			case  8: get_func_freq(msg);
-					 break;
-			case  0: brc_getdecaytime(msg);
-					 flag_mm=1;
-					 time=0;
-					 puf_param_mode=0;
-					 break;
-			default: break;
-		}	
-	}
-	else if (modet==3 && flag_m==1 && flag_mm==0)
-	{
-		time++;
-		switch (time%9)
-		{
-			case  1: get_address_mode(msg);
-					 break;
-            case  2: get_safe_mode(msg);
-                     break;
-			case  3: get_func_loc(msg);
-					 break;
-			case  4: itvl_start_address(msg);
-					 break;
-			case  5: itvl_end_address(msg);
-					 break;
-			case  6: itvl_getinitvalue(msg);
-					 break;
-			case  7: get_dcy_func(msg);
-					 break;
-			case  8: get_func_freq(msg);
-					 break;
-			case  0: itvl_getdecaytime(msg);
-					 flag_mm=1;
-					 time=0;
-					 puf_param_mode=0;
-					 break;
-			default: break;
-		}
-	}
-	else if (modet==4)
-	{
-		cpu_code(msg);
-		puf_param_mode=0;
-	}
-
-	if(flag_mm==1)
-	{
-		flag_m=0;
-		flag_mm=0;
-	}
-	else
-		flag_m=1;
-}
-
 void execute_puf(uint32_t msg)
 {
 	if (modet==0)
@@ -399,6 +252,176 @@ void execute_puf(uint32_t msg)
 	}
 }
 
+int time=0;
+/**
+ * flag_m: Mark workmode_set_status
+ * flag_mm: Mark puf_extract_status
+**/
+bool flag_m=0,flag_mm=0,puf_param_mode=0;
+void get_puf_param(uint32_t msg)
+{
+	// If init values aren't set for some reason
+	if (modet < 0 || time < 0 || time > 10) {
+		time=0;
+		flag_m=0;
+		flag_mm=0;
+		modet=0;
+	}
+	puf_param_mode=1;
+
+	// Respond to kernel
+	if (flag_m==0)
+	{
+		modet=getmode(msg);
+	}
+	else if (modet==0 && flag_m==1 && flag_mm==0)
+	{
+		time++;
+		switch (time%10)
+		{
+			case  1: get_address_mode(msg);
+					 break;
+            case  2: get_safe_mode(msg);
+                     break;
+			case  3: get_func_loc(msg);
+					 break;
+			case  4: all_start_address(msg);
+					 break;
+			case  5: all_end_address(msg);
+					 break;
+			case  6: all_getinitvalue(msg);
+					 break;
+			case  7: get_dcy_func(msg);
+					 break;
+			case  8: get_func_freq(msg);
+					 break;
+			case  9: get_max_measures(msg);
+					 break;
+			case  0: all_getdecaytime(msg);
+					 flag_mm=1;
+					 time=0;
+					 puf_param_mode=0;
+					 break;
+			default: break;
+		}	
+	}
+	else if (modet==1 && flag_m==1 && flag_mm==0)
+	{
+		time++;
+		switch (time%10)
+		{
+			case  1: get_address_mode(msg);
+					 break;
+            case  2: get_safe_mode(msg);
+                     break;
+			case  3: get_func_loc(msg);
+					 break;
+			case  4: all_start_address(msg);
+					 break;
+			case  5: all_end_address(msg);
+					 break;
+			case  6: all_getinitvalue(msg);
+					 break;
+			case  7: get_dcy_func(msg);
+					 break;
+			case  8: get_func_freq(msg);
+					 break;
+			case  9: get_max_measures(msg);
+					 break;
+			case  0: ext_getdecaytime(msg);
+					 flag_mm=1;
+					 time=0;
+					 puf_param_mode=0;
+					 break;
+			default: break;
+		}	
+	}
+	else if (modet==2 && flag_m==1 && flag_mm==0)
+	{
+		time++;
+		switch (time%10)
+		{
+			case  1: get_address_mode(msg);
+					 break;
+            case  2: get_safe_mode(msg);
+                     break;
+			case  3: get_func_loc(msg);
+					 break;
+			case  4: all_start_address(msg);
+					 break;
+			case  5: all_end_address(msg);
+					 break;
+			case  6: all_getinitvalue(msg);
+					 break;
+			case  7: get_dcy_func(msg);
+					 break;
+			case  8: get_func_freq(msg);
+					 break;
+			case  9: get_max_measures(msg);
+					 break;
+			case  0: brc_getdecaytime(msg);
+					 flag_mm=1;
+					 time=0;
+					 puf_param_mode=0;
+					 break;
+			default: break;
+		}	
+	}
+	else if (modet==3 && flag_m==1 && flag_mm==0)
+	{
+		time++;
+		switch (time%10)
+		{
+			case  1: get_address_mode(msg);
+					 break;
+            case  2: get_safe_mode(msg);
+                     break;
+			case  3: get_func_loc(msg);
+					 break;
+			case  4: itvl_start_address(msg);
+					 break;
+			case  5: itvl_end_address(msg);
+					 break;
+			case  6: itvl_getinitvalue(msg);
+					 break;
+			case  7: get_dcy_func(msg);
+					 break;
+			case  8: get_func_freq(msg);
+					 break;
+			case  9: get_max_measures(msg);
+					 break;
+			case  0: itvl_getdecaytime(msg);
+					 flag_mm=1;
+					 time=0;
+					 puf_param_mode=0;
+					 break;
+			default: break;
+		}
+	}
+	else if (modet==4)
+	{
+		cpu_code(msg);
+		puf_param_mode=0;
+	}
+
+	if(flag_mm==1)
+	{
+		flag_m=0;
+		flag_mm=0;
+	}
+	else
+		flag_m=1;
+
+	if (!puf_param_mode) {
+		for (int i = 1; max_measures <= 0 || i <= max_measures; ++i) {
+			// Now we have all the parameters
+			// Just continue measuring
+            printf("Starting %dth measurement...", i);
+			execute_puf(msg);
+		}
+	}
+}
+
 /*
  * called from sleh_irq (trap.c)
  * other end of the mailbox is in linux/drivers/mailbox/bcm2835-mailbox.c
@@ -410,17 +433,13 @@ void arm_monitor_interrupt() {
   /*printf("VPU MBOX rcv: 0x%lX, cnf 0x%lX\n",
       msg,
       ARM_1_MAIL1_CNF);*/
+
   if (puf_param_mode) {
+	// Treat all interrupts as params
 	get_puf_param(msg);
-	if (!puf_param_mode) {
-		while (true) {
-			// Now we have all the parameters
-			// Just continue measuring
-			execute_puf(msg);
-		}
-	}
 	return;
   }
+
   switch (msg & 0xf) {
   case 8: // property tags
     message = (uint32_t*)(msg & ~0xf);

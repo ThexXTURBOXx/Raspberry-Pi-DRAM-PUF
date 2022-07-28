@@ -213,7 +213,12 @@ void TestAllAddress() {
     mailbox_write(nfreq);
     delay_ms(50);
 
-    uart_puts("Input decay time(s)|: ");
+    uart_puts("Maximum amount of measurements|: ");
+    int maxmeasures = getfuncfreq();
+    mailbox_write(maxmeasures);
+    delay_ms(50);
+
+    uart_puts("Input decay time (s)|: ");
     int decaytime = getdecaytime();
     mailbox_write(decaytime);
     delay_ms(50);
@@ -266,7 +271,12 @@ void TestPuf() {
     mailbox_write(nfreq);
     delay_ms(50);
 
-    uart_puts("Input decay time(s)|: ");
+    uart_puts("Maximum amount of measurements|: ");
+    int maxmeasures = getfuncfreq();
+    mailbox_write(maxmeasures);
+    delay_ms(50);
+
+    uart_puts("Input decay time (s)|: ");
     int decaytime = getdecaytime();
     mailbox_write(decaytime);
     delay_ms(50);
@@ -319,8 +329,13 @@ void TestCustom() {
     mailbox_write(nfreq);
     delay_ms(50);
 
-    //uart_puts("Input decay time(s)|: ");
-    int decaytime = 600;
+    //uart_puts("Maximum amount of measurements|: ");
+    int maxmeasures = 1;
+    mailbox_write(maxmeasures);
+    delay_ms(50);
+
+    //uart_puts("Input decay time (s)|: ");
+    int decaytime = 120;
     mailbox_write(decaytime);
     delay_ms(50);
 
@@ -374,7 +389,12 @@ void TestOneRow() {
     mailbox_write(nfreq);
     delay_ms(50);
 
-    uart_puts("Input decay time(s)|: ");
+    uart_puts("Maximum amount of measurements|: ");
+    int maxmeasures = getfuncfreq();
+    mailbox_write(maxmeasures);
+    delay_ms(50);
+
+    uart_puts("Input decay time (s)|: ");
     int decaytime = getdecaytime();
     mailbox_write(decaytime);
     delay_ms(50);
@@ -429,7 +449,12 @@ void TestAtInterval() {
     mailbox_write(nfreq);
     delay_ms(50);
 
-    uart_puts("Input decay time(s)|: ");
+    uart_puts("Maximum amount of measurements|: ");
+    int maxmeasures = getfuncfreq();
+    mailbox_write(maxmeasures);
+    delay_ms(50);
+
+    uart_puts("Input decay time (s)|: ");
     int decaytime = getdecaytime();
     mailbox_write(decaytime);
     delay_ms(50);
