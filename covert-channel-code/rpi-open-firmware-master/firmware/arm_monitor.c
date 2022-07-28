@@ -227,24 +227,24 @@ int time=0;
  * flag_m: Mark workmode_set_status
  * flag_mm: Mark puf_extract_status
 **/
-bool flag_m=0,flag_mm=0;
+bool flag_m=0,flag_mm=0,puf_mode=0;
 int modet=0;
 void handle_puf(uint32_t msg)
 {
 	// If init values aren't set for some reason
 	if (modet < 0 || time < 0 || time > 9) {
-		 time=0;
-		 flag_m=0;
-		 flag_mm=0;
-		 modet=0;
+		time=0;
+		flag_m=0;
+		flag_mm=0;
+		modet=0;
 	}
+	puf_mode=1;
 
 	// Respond to kernel
 	if (flag_m==0)
 	{
 		modet=getmode(msg);
 	}
-
 	else if (modet==0 && flag_m==1 && flag_mm==0)
 	{
 		time++;
@@ -269,11 +269,11 @@ void handle_puf(uint32_t msg)
 			case  0: all_getdecaytime(msg);
 					 flag_mm=1;
 					 time=0;
+					 puf_mode=0;
 					 break;
 			default: break;
 		}	
 	}
-	
 	else if (modet==1 && flag_m==1 && flag_mm==0)
 	{
 		time++;
@@ -298,6 +298,7 @@ void handle_puf(uint32_t msg)
 			case  0: ext_getdecaytime(msg);
 					 flag_mm=1;
 					 time=0;
+					 puf_mode=0;
 					 break;
 			default: break;
 		}	
@@ -326,6 +327,7 @@ void handle_puf(uint32_t msg)
 			case  0: brc_getdecaytime(msg);
 					 flag_mm=1;
 					 time=0;
+					 puf_mode=0;
 					 break;
 			default: break;
 		}	
@@ -354,6 +356,7 @@ void handle_puf(uint32_t msg)
 			case  0: itvl_getdecaytime(msg);
 					 flag_mm=1;
 					 time=0;
+					 puf_mode=0;
 					 break;
 			default: break;
 		}
@@ -361,6 +364,7 @@ void handle_puf(uint32_t msg)
 	else if (modet==4)
 	{
 		cpu_code(msg);
+		puf_mode=0;
 	}
 
 	if(flag_mm==1)
@@ -383,9 +387,11 @@ void arm_monitor_interrupt() {
   /*printf("VPU MBOX rcv: 0x%lX, cnf 0x%lX\n",
       msg,
       ARM_1_MAIL1_CNF);*/
+  if (puf_mode) {
+	handle_puf(msg);
+	return;
+  }
   switch (msg & 0xf) {
-	// TODO: Switch to "PUF mode" on other interrupts and switch back afterwards
-	// Otherwise, case 8 gets called sometimes (e.g., on decay time 120)
   case 8: // property tags
     message = (uint32_t*)(msg & ~0xf);
     printf("length: %ld\n", message[0]);

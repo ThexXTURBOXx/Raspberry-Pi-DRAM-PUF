@@ -120,6 +120,7 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
         }
     });
 #endif
+// TODO: If no response for quite some time, restart measurement
     while (!interrupt) {
         int c = serialGetchar(fd);
         if (c == -1)
