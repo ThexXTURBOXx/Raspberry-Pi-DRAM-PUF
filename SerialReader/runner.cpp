@@ -153,6 +153,7 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
                 delete input;
             }
         } else if (END == sign) {
+            count++;
             write = false;
             log_data(std::to_string(charCount) + " bytes in total written.", log);
             output.flush();
@@ -180,7 +181,6 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
         } else if (ASK_INPUT == sign) {
             expectInput = true;
         } else if (FINISHED == sign) {
-            count++;
             interrupt = true;
         } else if (PANIC == sign) {
             interrupt = true;
