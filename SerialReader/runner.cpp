@@ -13,6 +13,7 @@ void SerialReader::run(Parser &parser) {
     Runner runner(parser.getSerialPort().c_str(), parser.getUSBPort(), parser.getBaudRate());
     bool running = true;
     int count = 0;
+    runner.reset(parser);
     while (running) {
         std::ofstream output(parser.getOutPrefix() + std::to_string(count) + ".bin");
         running = runner.loop(parser, output, count);
@@ -72,6 +73,7 @@ void SerialReader::run(Parser &parser, std::ostream &output) {
     Runner runner(parser.getSerialPort().c_str(), parser.getUSBPort(), parser.getBaudRate());
     bool running = true;
     int count = 0;
+    runner.reset(parser);
     while (running && count == 0) {
         running = runner.loop(parser, output, count);
     }
@@ -91,14 +93,17 @@ SerialReader::Runner::Runner(const char *port, int usb, int baud) : fd(serialOpe
 #endif
 }
 
-bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count) {
-    bool running = true;
+void SerialReader::Runner::reset(Parser &parser) {
     log_data("Cutting off USB Power...", log);
     digitalWrite(parser.getUSBPort(), HIGH);
     std::this_thread::sleep_for(std::chrono::seconds(parser.getUSBSleepTime()));
     log_data("Turning on USB Power...", log);
     digitalWrite(parser.getUSBPort(), LOW);
-    log_data("Starting measurement...", log);
+}
+
+bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count) {
+    bool running = true;
+    //log_data("Starting measurement...", log);
     char lastChar = ' ';
     bool write = false;
     volatile bool interrupt = false;

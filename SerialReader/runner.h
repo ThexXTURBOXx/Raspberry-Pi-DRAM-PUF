@@ -25,6 +25,8 @@ namespace SerialReader {
     public:
         Runner(const char *port, int usb, int baud);
 
+        void reset(Parser &parser);
+
         bool loop(Parser &parser, std::ostream &output, int &count);
 
        volatile bool expectInput = false;
