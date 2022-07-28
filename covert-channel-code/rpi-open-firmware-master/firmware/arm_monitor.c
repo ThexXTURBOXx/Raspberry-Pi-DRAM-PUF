@@ -185,7 +185,6 @@ void itvl_getdecaytime(uint32_t msg)
 {
 	decaytime=msg;
 	printf("\ndecaytime = %d s\n\n",decaytime);
-	puf_extract_itvl(stradd,endadd,initvalue,decaytime, addmode, funcloc, dcyfunc, nfreq);
 }
 
 void all_start_address(uint32_t msg)
@@ -210,21 +209,18 @@ void all_getdecaytime(uint32_t msg)
 {
 	decaytime=msg;
 	printf("\ndecaytime = %d s\n\n",decaytime);
-	puf_extract_all(safemode, stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);
 }
 
 void ext_getdecaytime(uint32_t msg)
 {
 	decaytime=msg;
 	printf("\ndecaytime = %d s\n\n",decaytime);
-	puf_extracted(stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);
 }
 
 void brc_getdecaytime(uint32_t msg)
 {
 	decaytime=msg;
 	printf("\ndecaytime = %d s\n\n",decaytime);
-	puf_extract_brc(stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);
 }
 
 int modet=0;
@@ -400,7 +396,6 @@ void get_puf_param(uint32_t msg)
 	}
 	else if (modet==4)
 	{
-		cpu_code(msg);
 		puf_param_mode=0;
 	}
 
