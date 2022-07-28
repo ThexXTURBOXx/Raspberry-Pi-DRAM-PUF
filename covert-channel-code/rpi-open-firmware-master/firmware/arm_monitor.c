@@ -127,7 +127,6 @@ void get_func_freq(uint32_t msg)
 	printf("\nFunction execution interval = %d us\n\n", (nfreq*50));
 }
 
-
 void cpu_code(uint32_t msg)
 {
   // uint32_t init_val = 0x12345678;
@@ -227,9 +226,9 @@ int time=0;
  * flag_m: Mark workmode_set_status
  * flag_mm: Mark puf_extract_status
 **/
-bool flag_m=0,flag_mm=0,puf_mode=0;
+bool flag_m=0,flag_mm=0,puf_param_mode=0;
 int modet=0;
-void handle_puf(uint32_t msg)
+void get_puf_param(uint32_t msg)
 {
 	// If init values aren't set for some reason
 	if (modet < 0 || time < 0 || time > 9) {
@@ -238,7 +237,7 @@ void handle_puf(uint32_t msg)
 		flag_mm=0;
 		modet=0;
 	}
-	puf_mode=1;
+	puf_param_mode=1;
 
 	// Respond to kernel
 	if (flag_m==0)
@@ -269,7 +268,7 @@ void handle_puf(uint32_t msg)
 			case  0: all_getdecaytime(msg);
 					 flag_mm=1;
 					 time=0;
-					 puf_mode=0;
+					 puf_param_mode=0;
 					 break;
 			default: break;
 		}	
@@ -298,7 +297,7 @@ void handle_puf(uint32_t msg)
 			case  0: ext_getdecaytime(msg);
 					 flag_mm=1;
 					 time=0;
-					 puf_mode=0;
+					 puf_param_mode=0;
 					 break;
 			default: break;
 		}	
@@ -327,7 +326,7 @@ void handle_puf(uint32_t msg)
 			case  0: brc_getdecaytime(msg);
 					 flag_mm=1;
 					 time=0;
-					 puf_mode=0;
+					 puf_param_mode=0;
 					 break;
 			default: break;
 		}	
@@ -356,7 +355,7 @@ void handle_puf(uint32_t msg)
 			case  0: itvl_getdecaytime(msg);
 					 flag_mm=1;
 					 time=0;
-					 puf_mode=0;
+					 puf_param_mode=0;
 					 break;
 			default: break;
 		}
@@ -364,7 +363,7 @@ void handle_puf(uint32_t msg)
 	else if (modet==4)
 	{
 		cpu_code(msg);
-		puf_mode=0;
+		puf_param_mode=0;
 	}
 
 	if(flag_mm==1)
@@ -374,6 +373,30 @@ void handle_puf(uint32_t msg)
 	}
 	else
 		flag_m=1;
+}
+
+void execute_puf(uint32_t msg)
+{
+	if (modet==0)
+	{
+		puf_extract_all(safemode, stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);	
+	}
+	else if (modet==1)
+	{
+		puf_extracted(stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);
+	}
+	else if (modet==2)
+	{
+		puf_extract_brc(stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);
+	}
+	else if (modet==3)
+	{
+		puf_extract_itvl(stradd,endadd,initvalue,decaytime, addmode, funcloc, dcyfunc, nfreq);
+	}
+	else if (modet==4)
+	{
+		cpu_code(msg);
+	}
 }
 
 /*
@@ -387,8 +410,15 @@ void arm_monitor_interrupt() {
   /*printf("VPU MBOX rcv: 0x%lX, cnf 0x%lX\n",
       msg,
       ARM_1_MAIL1_CNF);*/
-  if (puf_mode) {
-	handle_puf(msg);
+  if (puf_param_mode) {
+	get_puf_param(msg);
+	if (!puf_param_mode) {
+		while (true) {
+			// Now we have all the parameters
+			// Just continue measuring
+			execute_puf(msg);
+		}
+	}
 	return;
   }
   switch (msg & 0xf) {
@@ -417,7 +447,7 @@ void arm_monitor_interrupt() {
     break;
   default:
     //printf("unsupported mailbox channel\n");
-    handle_puf(msg);
+    get_puf_param(msg);
   }
 }
 

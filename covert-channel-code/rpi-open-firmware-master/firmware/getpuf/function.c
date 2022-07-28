@@ -1,4 +1,4 @@
-#include <lib/runtime.h>
+#include <runtime.h>
 #include "hardware.h"
 #include "PufAddress.h"
 
