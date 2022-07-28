@@ -1,0 +1,246 @@
+info from drivers/gpu/drm/vc4/vc4_crtc.c and drivers/gpu/drm/vc4/vc4_regs.h and include/drm/drm_modes.h
+
+> The 2835 has 3 different pixel valves.
+> pv0 in the audio power domain feeds DSI0 or DPI, while pv1 feeds DS1 or SMI.
+> pv2 in the image domain can feed either HDMI or the SDTV controller.
+
+shared:
+pv0 audio domain, DSI0/DPI
+pv1 audio domain?, DSI1/SMI
+
+VC4: pv2 is HDMI/SDTV
+
+VC6:
+pv2 HDMI0
+pv3 VEC
+pv4 HDMI1
+
+            VC4           VC6
+0x7e206000  pv0(DSI0/DPI) pv0(DSI0/DPI)
+0x7e207000  pv1(DSI1/SMI) pv1(DSI1/SMI)
+0x7e20a000                pv2(hdmi0)
+0x7e216000                pv4(hdmi1)
+0x7e807000  pv2(HDMI/VEC)
+0x7ec12000                pv3(vec)
+
+
+VC6 HVS->PV routing
+    HVS0  HVS1  HVS2
+PV0 X
+PV1 X     X     X
+PV2 X     X     X
+PV3       X
+PV4 X     X     X
+
+
+
+from linux/drivers/gpu/drm/vc4/vc4_crtc.c
+
+vc4(pi0-pi3)
+PV0, fifo depth 64,  1 pixel per clock, 0=DSI0/1=DPI,  HVS0           output 0
+PV1, fifo depth 64,  1 pixel per clock, 0=DSI1/1=SMI,            HVS2 output 2
+PV2, fifo depth 64,  1 pixel per clock, 1=HDMI0/2=VEC,      HVS1      output 1
+vc6(2711)
+PV0, fifo depth 64,  1 pixel per clock, 0=DSI0/1=DPI,  HVS0           output 0
+PV1, fifo depth 64,  1 pixel per clock, 0=DSI1/1=SMI,  HVS0/HVS1/HVS2 output 3
+PV2, fifo depth 256, 2 pixel per clock, 0=HDMI0,       HVS0/HVS1/HVS2 output 4
+PV3, fifo depth 64,  1 pixel per clock, 0=VEC,              HVS1      output 1
+PV4, fifo depth 64,  2 pixel per clock, 0=HDMI1,       HVS0/HVS1/HVS2 output 5
+
+
+https://www.raspberrypi.org/forums/viewtopic.php?p=1758588#p1758588
+> You've missed out the transposer from that list which is a special PV that writes back to memory with optional transpose (up to 1920 pixels in either direction IIRC). That can only be routed off HVS channel 2.
+> The firmware reserves channel 2 exclusively for the transposer, hence max 2 displays.
+> KMS doesn't and so allows 3 displays as long as they don't conflict on PV usage. The transposer does have a driver and is exposed as a writeback connector, but very little currently uses such a thing.
+
+
+PIXELVALVEn_C           base + 0x00
+0     enable
+1     fifo clear
+2:3   clock select, 0=dsi 1=dpi/smi/hdmi 2=vec
+4:5   pixel rep                     pixel_rep - 1
+12    wait h-start
+13    trigger underflow
+14    clear at start
+15:20 fifo full level,              64 - (bytes_per_pixel * 6) for most modes, 64-14 for dsiv18  see vc4_get_fifo_full_level in linux for more details
+21:23 format, 0=24 1=dsiv16 2=dsic16 3=dsiv18 4=dsiv24
+
+PIXELVALVEn_VC          base + 0x04
+bit
+0     video enable
+1     contiuous (always set?)
+2     command (not used by linux)
+3     output is dsi
+4     interlace
+5     odd first (when interlacing, which field is first)
+6:22  odd delay
+
+PIXELVALVEn_VSYNCD_EVEN base + 0x8
+
+if using double-clock mode, pixel_rep = 2
+else pixel_rep = 1
+
+PIXELVALVEn_HORZA       base + 0xc
+0:15  hsync                         total length of H-SYNC * pixel_rep
+16:31 horizontal back porch         the pixel back-portch begins at * pixel_rep
+
+PIXELVALVEn_HORZB       base + 0x10
+0:15  h_active (width)              number of pixels actually displayed * pixel_rep
+16:31 horizoncal front porch        (hsync_start - hdisplay) * pixel_rep
+
+PIXELVALVEn_VERTA       base + 0x14
+0:15  vsync_length                  scanlines in vsync
+16:31 vertical back porch           scanlines in v back porch
+
+PIXELVALVEn_VERTB       base + 0x18
+0:15  v_active                      scanlines in the displayed field
+16:31 vertical front porch          scanlines in the v front porch
+
+PIXELVALVEn_VERTA_EVEN  base + 0x1c
+same as PIXELVALVEn_VERTA for the even fields
+
+PIXELVALVEn_VERTB_EVEN  base + 0x20
+same as PIXELVALVEn_VERTB for the event fields
+
+the above 2 _EVEN fields only have to be set when interlacing is enabled
+
+PIXELVALVEn_INTEN       base + 0x24
+interrupt enable
+0     hsync interrupt
+1     h-backporch interrupt
+2     h-active interrupt
+3     h-frontporch interrupt
+4     v-sync interrupt
+5     v-backporch interrupt
+6     v-active interrupt
+7     v-frontporch start interrupt, do page-flip here
+8     v-frontporch end interrupt
+9     video idle interrupt
+
+PIXELVALVEn_INTSTAT     base + 0x28
+interrupt status for above
+
+PIXELVALVEn_STAT        base + 0x2c
+
+PIXELVALVEn_DSI_HACT_ACT base + 0x30
+0:15  horizontal active?            hdisplay * pixel_rep
+
+
+example state from an rpi4: https://gist.github.com/cleverca22/65bf044521e508e1adb5c82ef74548cf
+
+a vsync_length of 3, means that vsync is active for 3 scan-lines
+
+vfp, vsync, vbp, vactive are all scan-line counts
+
+DE (GPIO1) is active only for the active screen-area, no porch/sync pulses
+
+
+
+example states:
+
+an rpi4 with only DPI enabled:
+PV0 drives the DPI
+PV3/4 are configured for 320x480 for an unknown purpose
+all others are 0x0
+
+an rpi4 with only HDMI0 enabled
+PV3 raw dump:
+0x7e20a000 01 40 17 07 03 00 00 00  00 00 00 00 38 00 7c 00  |.@..........8.|.|
+0x7e20a010 80 02 18 00 03 00 26 00  00 04 01 00 00 00 00 00  |......&.........|
+0x7e20a020 00 00 00 00 00 00 00 00  00 00 00 00 44 04 00 00  |............D...|
+0x7e20a030 00 00 00 00 20 00 00 00  01 00 00 00 00 00 02 00  |.... ...........|
+PV3, 640x1024 (wrong, its running at 1280x1024, width is double what dump tool claims)
+PV4, 320x480
+all others are 0x0
+
+rpi4, hdmi0 at 640x480
+PV3 raw dump:
+0x7e20a000 01 40 17 07 03 00 00 00  00 00 00 00 30 00 18 00  |.@..........0...|
+0x7e20a010 40 01 08 00 02 00 21 00  e0 01 0a 00 00 00 00 00  |@.....!.........|
+0x7e20a020 00 00 00 00 00 00 00 00  00 00 00 00 48 04 00 00  |............A...|
+0x7e20a030 00 00 00 00 20 00 00 00  01 00 00 00 00 00 02 00  |.... ...........|
+claims 320x480, still off
+
+rpi3, hdmi at state 0x6 [DVI DMT (35) RGB full 5:4], 1280x1024 @ 60.00Hz, progressive
+PV2 raw dump:
+0x7e807000 05 70 17 00 03 00 00 00  00 00 00 00 70 00 f8 00  |.p..........p...|
+0x7e807010 00 05 30 00 03 00 26 00  00 04 01 00 00 00 00 00  |..0...&.........|
+0x7e807020 00 00 00 00 00 00 00 00  00 00 00 00 44 04 00 00  |............D...|
+0x7e807030 00 05 00 00 76 78 69 70  76 78 69 70 76 78 69 70  |....vxipvxipvxip|
+claims 1280x1024, which is correct
+total scanline length: 1688
+total scanlines: 1066
+total clocks per frame: 1799408
+
+rpi3, state 0x40000 [NTSC 4:3], 720x480 @ 60.00Hz, interlaced
+PV2 raw dump:
+0x7e807000 09 70 17 00 33 00 00 00  ae 01 00 00 40 00 3c 00  |.p..3.......@.<.|
+0x7e807010 d0 02 0e 00 03 00 10 00  f0 00 03 00 03 00 10 00  |................|
+0x7e807020 f0 00 04 00 00 00 00 00  00 00 00 00 20 06 00 00  |............ ...|
+0x7e807030 d0 02 00 00 76 78 69 70  76 78 69 70 76 78 69 70  |....vxipvxipvxip|
+720x240
+total scanline length: 858
+total scanlines: 262
+total clocks per frame: 224796
+
+rpi4, ntsc under kms control
+PV3 raw dump:
+0x7ec12000 09 70 17 00 33 00 00 00  ae 01 00 00 40 00 3c 00  |.p..3.......@.<.|
+0x7ec12010 d0 02 0e 00 03 00 10 00  f0 00 03 00 03 00 10 00  |................|
+0x7ec12020 f0 00 04 00 80 00 00 00  00 00 00 00 44 06 00 00  |............D...|
+0x7ec12030 00 00 00 00 20 00 00 00  01 00 00 00 00 00 02 00  |.... ...........|
+0x7ec12040 02 00 03 00 00 03 05 00  00 00 00 00 c8 0f 00 00  |................|
+0x7ec12050 00 00 00 00 00 00 00 00  00 00 00 00 20 00 00 00  |............ ...|
+0x7ec12060 00 00 00 00 08 08 08 05  07 00 00 00 d0 02 00 00  |................|
+0x7ec12070 60 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |`...............|
++---------------------------------------+
+| front|      |      |           3/   4 |
+|      | sync |      |           3/   3 |
+|      |      | back |          16/  16 |
+|   14 |   64 |   60 |  720 x  240/ 240 |
++---------------------------------------+
+
+rpi3, state 0x80000 [PAL 4:3], 720x576 @ 50.00Hz, interlaced
+PV2 raw dump:
+0x7e807000 09 70 17 00 53 6c 00 00  00 00 00 00 40 00 3c 00  |.p..Sl......@.<.|
+0x7e807010 d0 02 14 00 03 00 14 00  20 01 02 00 03 00 13 00  |........ .......|
+0x7e807020 20 01 02 00 00 00 00 00  00 00 00 00 44 06 00 00  | ...........D...|
+0x7e807030 d0 02 00 00 76 78 69 70  76 78 69 70 76 78 69 70  |....vxipvxipvxip|
+720 x  288
+total scanline length: 864
+total scanlines: 313
+total clocks per frame: 270432
+
+
+when in DPI mode, the clock comes via CM_DPI(CTL|DIV)
+
+the rpi4 will use XOSC for clocks below ~50mhz, and PLLD_PER for clocks above ~50mhz, beyond 750mhz it just gives up and doesnt enable
+PLLD typically runs at 3ghz, and PLLD_PER is /4, so 750mhz
+
+but the GPIO are only rated for 75mhz (at least on the rpi0-3 line)
+
+(rpi3) SCALER_DISPLIST1 controls the HDMI port
+(rpi4) list 0/1/2 are all blank
+
+
+VC4?
+https://www.raspberrypi.org/forums/viewtopic.php?f=91&t=94424&start=200
+Looking up the potential options from last time
+https://github.com/raspberrypi/firmware ... -455556619
+DSI0+DSI1+HDMI
+DPI+DSI1+HDMI
+DSI0+DSI1+SDTV
+DPI+DSI1+SDTV
+
+There are three pixel valves.
+Pixelvalve0 can be used by DSI0 (which is 2 data lane DSI) or DPI.
+Pixelvalve1 can be used by DSI1 (which is 4 data lane DSI) or SMI.
+Pixelvalve2 can be used by HDMI (which is 4 data lane DSI) or SDTV.
+
+https://www.raspberrypi.org/forums/viewtopic.php?p=1712201#p1712201
+VC6
+PV0 DSI0/DPI
+PV1 DSI1/SMI
+PV2 HDMI0
+PV3 VEC
+PV4 HDMI1

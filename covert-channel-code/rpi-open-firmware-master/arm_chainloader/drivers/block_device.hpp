@@ -17,29 +17,40 @@ Block device.
 
 =============================================================================*/
 
-struct BlockDevice {
-	unsigned int block_size;
+#ifdef __cplusplus
+extern "C" {
+#endif
+void sdhost_init();
 
-	template <typename T>
-	inline bool read_block(uint32_t sector, T* dest_buffer) {
-		return read_block(sector, reinterpret_cast<uint32_t*>(dest_buffer));
-	}
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+struct BlockDevice {
+  unsigned int block_size;
+
+  template <typename T>
+  inline bool read_block(uint32_t sector, T* dest_buffer, uint32_t count) {
+    return read_block(sector, reinterpret_cast<uint32_t*>(dest_buffer), count);
+  }
 
 	template <typename T>
 	inline bool write_block(uint32_t sector, T* src_buffer) {
 		return write_block(sector, reinterpret_cast<const uint32_t*>(src_buffer));
 	}
 
-	inline unsigned int get_block_size() {
-		return block_size;
-	}
+  inline unsigned int get_block_size() {
+    return block_size;
+  }
 
-	virtual bool read_block(uint32_t sector, uint32_t* buf) = 0;
+  virtual bool read_block(uint32_t sector, uint32_t* buf, uint32_t count) = 0;
 
 	virtual bool write_block(uint32_t sector, const uint32_t* buf) = 0;
 
-	/* called to stop the block device */
-	virtual void stop() {}
+  /* called to stop the block device */
+  virtual void stop() {}
 };
 
 extern BlockDevice* get_sdhost_device();
+#endif

@@ -5,7 +5,9 @@
  * ARM trap handling code.
  */
 
-#include <lib/runtime.h>
+#include <runtime.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 struct arm_saved_state {
 	uint32_t	r[13];		/* General purpose register r0-r12 */
@@ -48,7 +50,7 @@ extern "C" void fatal_exception(arm_saved_state_t* regs, const char* fmt, ...)
 }
 
 extern "C" void sleh_undef(arm_saved_state_t* regs) {
-	fatal_exception(regs, "Undefined instruction");
+  fatal_exception(regs, "Undefined instruction");
 }
 
 extern "C" void sleh_prefabt(arm_saved_state_t* regs) {
@@ -56,10 +58,14 @@ extern "C" void sleh_prefabt(arm_saved_state_t* regs) {
 }
 
 extern "C" void sleh_dataabt(arm_saved_state_t* regs) {
-	fatal_exception(regs, "Data abort");
+  uint32_t dfar, dfsr;
+  __asm__("mrc p15, 0, %0, c6, c0, 0" : "=r"(dfar));
+  __asm__("mrc p15, 0, %0, c5, c0, 0" : "=r"(dfsr));
+  printf("DFAR: 0x%08lx\nDFSR: 0x%08lx\n", dfar, dfsr);
+  fatal_exception(regs, "Data abort");
 }
 extern "C" void sleh_addrexc(arm_saved_state_t* regs) {
-	fatal_exception(regs, "Address exception");
+  fatal_exception(regs, "Address exception");
 }
 
 extern "C" void sleh_irq(arm_saved_state_t* regs) {

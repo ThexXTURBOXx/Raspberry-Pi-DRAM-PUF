@@ -1,0 +1,133 @@
+name    id      freq(pi0)
+core     1        250,000,000
+dpi      4
+dsi0     7                  0
+dsi1     8                  0
+vec     10
+dsi0esc 11
+dsi1esc 12
+gpclk0  18
+gpclk1  19
+uart    22
+pcm     23
+smi     24
+pwm     25
+otp     26          4,800,000
+h264    28                  0
+pixel   29
+genet250 30
+genet125 31
+cam0    41
+cam1    43
+isp     45                  0
+v3d     46        250,000,000
+arm     48        700,000,000
+usb     49
+emmc    50        200,000,000
+emmc2   51
+tsens   55          1,920,000
+tectl   62                  0
+wdog    63                  0
+dft     64
+pulse   65
+testmux 66
+xpt     67
+debug0  68
+debug1  69
+gisb    70
+altscb  71
+clk27   72
+clk54   73
+clk108  74
+m2mc    75
+hevc    76                  0
+plla    100     2,250,000,128
+pllb    100     2,800,000,000
+pllc    100     2,000,000,128
+plld    100     2,000,000,128
+pllh    100     2,160,000,000
+
+
+
+clock_measure_arm makes use of TD0 and other previously unseen clock regs
+
+CM_PLLTCTL = CM_PASSWORD | 0x20; // set kill bit
+CM_PLLTCTL = CM_PASSWORD | 0x2; // set source to 2
+CM_TDCLKEN = CM_PASSWORD | 0x20; // PLLBDIV2
+CM_TD0DIV = CM_PASSWORD | 0x1000; // divisor = 0x1000 (supports a 24bit int)
+CM_TD0CTL = CM_PASSWORD | 0x1; // source = 1
+CM_TD0CTL = CM_PASSWORD | 0x11 // source=1, enable=true
+CM_BURSTCNT = CM_PASSWORD | 0x4b00; // 19.2mhz / 1000
+CM_BURSTCTL = CM_PASSWORD | 0x10;   // enable = true
+
+wait until ((CM_PLLTCTL & 0x80) == 0), meaning its not busy, waiting has a timeout, and a sleep
+
+if it didnt timeout, a=CM_PLLTCNT0
+
+CM_PLLTCTL = CM_PASSWORD | 0x20; // set kill bit
+CM_PLLTCTL = CM_PASSWORD;
+CM_TDCLKEN = CM_PASSWORD;
+CM_TD0CTL = CM_PASSWORD | 0x1; // enable = false;
+return a * 2000
+
+core clocks:
+CM_H264CTL    1
+CM_ISPCTL     2     ISP (camera stuff)
+CM_SDCCTL     3?    Secondary SDRAM clock.  Used for low-voltage modes when the PLL in the SDRAM controller can't be used.
+CM_V3DCTL     4?
+CM_VPUCTL     5     controls VPU core clock and VPU L1 cache
+
+oscillator based:
+CM_OTPCTL     6     One Time Programmable Memory clock.  Maximum 10Mhz.
+CM_TECCTL           unknown
+CM_TSENSCTL         Clock for the temperature sensor. Generally run at 2Mhz, max 5Mhz.
+CM_TIMERCTL   9     Used for a 1Mhz clock for the system clocksource, and also used by the watchdog timer and the camera pulse generator.
+CM_PULSECTL   unknown
+
+dsi clocks:
+CM_DSI0ECTL   0xc
+CM_DSI0PCTL   0xd
+CM_DSI1ECTL
+CM_DSI1PCTL
+
+peripheral clocks:
+CM_CAM0CTL    0xe
+CM_CAM1CTL    0xf
+CM_DPICTL     0x11  DPI clock
+CM_GP0CTL     0x14
+CM_GP1CTL     0x15
+CM_GP2CTL
+CM_HSMCTL     0x16  HDMI state machine
+CM_PCMCTL     0x17  i2s
+CM_PWMCTL     0x18  PWM
+CM_SLIMCTL    0x19  unknown, has a header file, "slim bus"??
+CM_SMICTL     0x1b  SMI
+CM_UARTCTL    0x1c  PL011 uart
+CM_VECCTL     0x1d  composite video generator, must be 108mhz to function
+CM_DFTCTL           unknown, also has PM_DFT
+CM_AVEOCTL    0x26? unknown
+CM_EMMCCTL    0x26? Arasan EMMC clock (sdhci?)
+
+other:
+CM_GNRICCTL   unknown purpose, also has PM_GNRIC
+CM_ARMCTL     ARM freq control
+CM_TCNTCTL    frequency measurement
+CM_PLLTCTL    PLL T?
+CM_TD0CTL
+CM_TD1CTL
+CM_CCP2       has header and PM_CCP2TX
+
+clocks lacking a SRC field:
+CM_SYS
+CM_PERIA
+CM_PERII
+
+> CM_PERIICTL (and CM_PERIACTL, CM_SYSCTL and CM_VPUCTL if you have the debug bit set in the power manager, which we don't bother exposing) are individual gates off of the non-stop vpu clock.
+(from linux source)
+
+
+https://github.com/raspberrypi/firmware/issues/1537
+> Yes, we define PLLB (which the arm typically uses with a divide by 2) as maxing a max frequency of 5GHz.
+
+pi4 PLLB has a max rating of 5ghz
+the firmware runs the arm at PLLB/2

@@ -20,8 +20,8 @@ SECTIONS
 
 	PROVIDE (__init_array_start = .);
 	.init_array : {
-		*(.init_array)
-		*(.init_array.*)
+		KEEP(*(.init_array))
+		KEEP(*(.init_array.*))
 	}
 	PROVIDE (__init_array_end = .);
 
@@ -32,9 +32,21 @@ SECTIONS
 	.bss : {
 		_edata = .;
 		__bss_start = .;
+                *(.bss.page_table)
 		*(.bss)
+		*(.bss.*)
+                __bss_end = .;
 	}
 
-	. = ALIGN(32 / 8);
+	. = ALIGN(16);
+        _irq_stack_bottom = .;
+        . = . + 1024;
+        _irq_stack_top = .;
+
+        _svc_stack_bottom = .;
+        . = . + 1024;
+        _svc_stack_top = .;
+
+	. = ALIGN(16);
 	_end = . ;
 }

@@ -1,0 +1,78 @@
+https://www.raspberrypi.org/forums/viewtopic.php?p=1677250#p1677250
+
+> You can load vc4-fkms-v3d or vc4-kms-v3d on any Pi to give you the DRM/KMS interface for rendering. vc4-fkms-v3d is the default on Pi4.
+> The 3D performance on a Pi0 or 1 is going to be fairly poor as all the setup has to be done by the fairly weak ARM core, so isn't really recommended.
+
+> Only vc4-kms-v3d is Linux driving the hardware directly, the others are using the firmware.
+> vc4-kms-v3d is still a work in progress for the Pi4 as the hardware has significant changes over the previous generations of Pi.
+
+
+https://www.raspberrypi.org/forums/viewtopic.php?p=1757953#p1757953
+> I am not aware of any mechanism to get 10bit YUV via the DPI peripheral, and certainly not in 2017 when the original post was made. 10bit output only gets routed through the HDMI blocks on Pi4.
+> The HVS can output YUV4:4:4 by using the OLED colour conversion block that is in the output block of each channel. It's not possible to directly output YUV4:2:0 or 4:2:2, although the HDMI blocks can downconvert to 4:2:2.
+
+
+https://www.raspberrypi.org/forums/viewtopic.php?p=1781249#p1781249
+>> can the HVS/DPI peripherals handle colorspace conversion, and emit YPbPr over the 24 bits of the DPI port?
+> In theory it can produce YUV 444, but I've never looked into the detail.
+> For HDMI output as YUV there is a conversion available in the HDMI block (including chroma subsample to 422), and that is the approach we're likely to take.
+
+https://www.raspberrypi.org/forums/viewtopic.php?p=1808040#p1808040
+> The OLED colour matrix block has changed with Pi4/HVS5, so the existing code doesn't work. Whereas previously there was one CTM that could be assigned to an HVS channel, there is now an OLED CTM per HVS channel. That means a moderate amount of fiddling within the KMS driver.
+
+it deals with color space conversion
+
+
+#if 0 // interlacing was off, re-test this
+the Y position of a layer is in pixels, and when interlaced, will allow field level resolution (even y lands on even field? odd y lands on odd field?)
+
+when using TPZ (down) scaling, the destination height, is measured in scanlines on a single field
+so if you claim the image is 100x100, it will occupy 200 pixels worth of space, 100 even scanlines, interleaved with 100 odd scanlines
+#endif
+
+
+
+constants when not specified:
+driving NTSC at 720x480i, downscaling a 493x620 image to 100x100, with a background fill
+hvs_channels[1].dispbase = BASE_BASE(0xf10)  | BASE_TOP(0x4b00);
+
+VPU now at 108mhz, PLLC_CORE0 at 108mhz, PLLC at 432mhz
+3 sprites + bg on the same region causes glitching
+
+VPU now at 216mhz, PLLC_CORE0 at 216mhz, PLLC at 864mhz
+10 sprites moving randomly, + bg, random glitches, hard to tell how many overlap
+
+VPU now at 324mhz, PLLC_CORE0 at 324mhz, PLLC at 1296mhz
+16 sprites moving randomly, + bg, random glitches, hard to tell how many overlap
+
+
+vc4 hvs muxing
+
+SCALER_DISPCTRL_DSP3_MUX, 2=??, 3=TXP
+
+2711 hvs muxing
+output 2 HVS2, SCALER_DISPECTRL_DSP2_MUX=0
+output 2 HVS_, SCALER_DISPECTRL_DSP2_MUX=1
+
+where _ is in the 0/1/2 range
+output 3 HVS_, SCALER_DISPCTRL_DSP3_MUX=_, 3==disabled
+output 4 HVS_, SCALER_DISPEOLN_DSP4_MUX=_, 3==disabled
+output 5 HVS_, SCALER_DISPDITHER_DSP5_MUX=_, 3==disabled
+
+
+bcm2711 hdmi kms example data
+root@pi400:/sys/kernel/debug/dri/1# cat hvs_dlists 
+HVS chan 0:
+dlist: 45: 0x4800d807
+dlist: 46: 0x00000000
+dlist: 47: 0x4000fff0
+dlist: 48: 0x04000500
+dlist: 49: 0x01aa0000
+dlist: 50: 0xdfa00000
+dlist: 51: 0xdfc14800
+dlist: 52: 0x00001400
+dlist: 53: 0x80000000
+HVS chan 1 disabled
+HVS chan 2 disabled
+
+dlist: 48: 0x04000500, 0x500 x 0x400 (1280x1024) source image

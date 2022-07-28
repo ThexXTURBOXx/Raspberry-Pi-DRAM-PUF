@@ -19,6 +19,7 @@ Mailbox driver.
 
 #include "mailbox.hpp"
 #include <hardware.h>
+#include <stdio.h>
 
 #define logf(fmt, ...) printf("[MBOX:%s]: " fmt, __FUNCTION__, ##__VA_ARGS__);
 
@@ -40,7 +41,7 @@ Bcm2708Mailbox::Bcm2708Mailbox() {
 
 bool Bcm2708Mailbox::write_word(uint32_t data, int timeout) {
 	if (!wait_for_mask(ARM_0_MAIL1_STA, ARM_MS_FULL, false, timeout)) {
-		logf("mailbox write timed out after %dus (STA=0x%X)\n", timeout, ARM_0_MAIL1_STA);
+		logf("mailbox write timed out after %dus (STA=0x%lX)\n", timeout, ARM_0_MAIL1_STA);
 		return false;
 	}
 

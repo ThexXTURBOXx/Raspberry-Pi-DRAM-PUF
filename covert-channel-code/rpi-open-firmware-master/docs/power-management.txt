@@ -1,0 +1,96 @@
+https://github.com/anholt/linux/blob/e50da9745215df2260169ff0685423dbf43ee2d3/drivers/soc/bcm/bcm2835-pm.c#L132-L137
+
+this file has code that can enable various power domains withint he rpi
+
+PM_PROC example (arm cpu cores)
+
+start by clearing the ARMRSTN flag
+wait 15 usec
+set POWUP bit (enables power to that block)
+wait for POWOK status
+set ISPOW (some kind of electrical isolation)
+set MEMREP (memory repair?)
+wait for MRDONE (mem repair done)
+set ISFUNC (functional isolation)
+
+
+https://www.raspberrypi.org/documentation/raspbian/applications/vcgencmd.md
+
+code found behind `vcgencmd measure_volts`
+sdram phy  sdram_p: A2W_SMPS_LDO1 >> 18
+sdram io   sdram_i: A2W_SMPS_LDO0 >> 10
+sdram core sdram_c: A2W_SMPS_LDO0 >> 15
+
+those 3 registers are all signed 5 bit ints
+
+&0x1f to select just the reg of interest
+&0x10 to detect negative
+|0xffff_ffe0 to sign extend
+
+to convert to volts, (X * 25 + 1200) * 0.001
+
+each tick of the 5bit int represents 0.025volts of offset, relative to a baseline of 1.2v, max range: 0.8v<->1.575v
+
+core: A2W_SMPS_A_VOLTS
+another 5bit int, sign extend, 0.025 volt increments, 1.2v baseline, but then offset by something in GP
+then convert backwards into a 5bit int, and further translate into the -16<->+8 range, and convert back to voltage??
+
+https://github.com/raspberrypi/linux/issues/932
+PM_RSTS docs
+
+
+
+
+pi3
+power applied but reset held
+4.73v (crappy cable)
+110mA
+
+network booted, VPU at 500mhz but held in sleep
+4.78v
+124mA
+
+netboot, VPU 250mhz, held in sleep
+4.79v
+116mA
+
+vpu now 125mhz
+4.81v
+112mA
+
+100mhz
+4.81v
+112mA
+
+
+10mhz
+4.82v
+111mA
+
+https://www.raspberrypi.org/forums/viewtopic.php?f=28&t=292538
+> 1.2V is the defailt voltage when idle.
+> It increases when in turbo mode by an amount that varies with silicon. (And you are forcing turbo mode always).
+
+
+
+
+pi0
+arm_clock pllb    divisor   core_v
+100mhz    2.4ghz  /24       1.2
+200mhz    2.4ghz  /12       1.35
+300mhz    2.4ghz  /8        1.35
+400mhz    3.2ghz  /8        1.35
+500mhz    2ghz    /4        1.35
+600mhz    2.4ghz  /4        1.35
+700mhz    2.8ghz  /4        1.35
+
+700mhz    2.8ghz  /4        1.2
+800mhz    3.2ghz  /4        1.35
+900mhz    1.8ghz  /2        1.35
+1ghz      2ghz    /2        1.35
+
+
+
+on the pi2, low-voltage is handled by ??? and directly drives the power led, which is also on a gpio pin
+reading that pin gives the level of the sense circuit
+driving that pin will fake a low-voltage event, and blind you to the truth

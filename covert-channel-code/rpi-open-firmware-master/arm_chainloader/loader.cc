@@ -17,192 +17,345 @@ Second stage bootloader.
 
 =============================================================================*/
 
-#include <string.h>
-#include <drivers/fatfs/ff.h>
-#include <chainloader.h>
-#include <drivers/mailbox.hpp>
-#include <drivers/block_device.hpp>
-#include <libfdt.h>
-#include <memory_map.h>
+#include "chainloader.h"
+#include "memory_map.h"
+#include "mmu.h"
+#include "drivers/fatfs/ff.h"
+#include "drivers/mailbox.hpp"
+#include "drivers/block_device.hpp"
 
-#define logf(fmt, ...) printf("[LDR:%s]: " fmt, __FUNCTION__, ##__VA_ARGS__);
+#include <libfdt.h>
+#include <hardware.h>
+#include <crc32.h>
+
+#include <string.h>
+#include <stdio.h>
+
+#include "drivers/fatfs/diskio.h"
+#include "start.h"
+
+#define logf(fmt, ...) print_timestamp(); printf("[LDR:%s]: " fmt, __FUNCTION__, ##__VA_ARGS__);
 
 FATFS g_BootVolumeFs;
 
 #define ROOT_VOLUME_PREFIX "0:"
-#define DTB_LOAD_ADDRESS    0xF000000 // 240 mb from start
-#define KERNEL_LOAD_ADDRESS 0x2000000 // 32 mb from start
+#define DTB_LOAD_ADDRESS    0xF000000 // 240mb from start
+#define KERNEL_LOAD_ADDRESS 0x2000000 // 32mb from start
+#define INITRD_LOAD_ADDRESS 0x4000000 // 64mb from start
 
-typedef void (*linux_t)(uint32_t, uint32_t, void *);
+typedef void __attribute__((noreturn)) (*linux_t)(uint32_t, uint32_t, void*);
 
-static_assert((MEM_USABLE_START + 0x800000) < KERNEL_LOAD_ADDRESS,
+struct mem_entry {
+  uint32_t address;
+  uint32_t size;
+};
+
+struct ranges {
+  uint32_t child;
+  uint32_t parent;
+  uint32_t size;
+};
+
+static_assert((MEM_USABLE_START+0x800000) < KERNEL_LOAD_ADDRESS,
               "memory layout would not allow for kernel to be loaded at KERNEL_LOAD_ADDRESS, please check memory_map.h");
 
+static uint32_t htonl(uint32_t hostlong) {
+  return ((hostlong & 0x000000ff) << 24) |
+         ((hostlong & 0x0000ff00) << 8) |
+         ((hostlong & 0x00ff0000) >> 8) |
+         ((hostlong & 0xff000000) >> 24);
+}
+
+void hex32(uint32_t input, char *output) {
+  output[8] = 0;
+  for (int i=7; i>=0; i--) {
+    int nibble = input & 0xf;
+    if (nibble <= 9) {
+      output[i] = 0x30 + nibble;
+    } else {
+      output[i] = 0x57 + nibble;
+    }
+    input = input >> 4;
+  }
+}
+
 struct LoaderImpl {
-
-    linux_t kernel;
-
-    inline bool file_exists(const char *path) {
-        FRESULT r = f_stat(path, NULL);
-        if (r != FR_OK) {
-            logf("Stat %s: %d\n", path, r);
-            return false;
-        }
-        return true;
+  LoaderImpl() {
+    find_and_mount();
+    auto kernel = load_kernel();
+    size_t initrd_size = 0;
+    bool do_load_initrd = true;
+    uint8_t *initrd = NULL;
+    if (do_load_initrd) {
+      load_initrd(&initrd_size);
     }
 
-    size_t read_file(const char *path, uint8_t *&dest, bool should_alloc = true) {
-        /* ensure file exists first */
-        if (!file_exists(path))
-            panic("attempted to read %s, but it does not exist", path);
+    /* read the command-line null-terminated */
+    uint8_t *cmdline;
+    size_t cmdlen = read_file("cmdline.txt", cmdline);
 
-        /* read entire file into buffer */
-        FIL fp;
-        f_open(&fp, path, FA_READ);
+    logf("kernel cmdline: %s\n", cmdline);
 
-        unsigned int len = f_size(&fp);
-
-        if (should_alloc) {
-            /*
-             * since this can be used for strings, there's no harm in reserving an
-             * extra byte for the null terminator and appending it.
-             */
-            uint8_t *buffer = new uint8_t[len + 1];
-            dest = buffer;
-            buffer[len] = 0;
-        }
-
-        logf("%s: reading %d bytes to 0x%X (allocated=%d) ...\n", path, len, (unsigned int) dest, should_alloc);
-
-        f_read(&fp, dest, len, &len);
-        f_close(&fp);
-
-        return len;
+      /* load flat device tree */
+    uint8_t* fdt;
+    if (do_load_initrd) {
+      const char *dtb_name = detect_model_dtb();
+      fdt = load_fdt_and_initrd(dtb_name, (char*)cmdline, initrd, initrd_size);
+    } else {
+      fdt = load_fdt("rpi.dtb", (char*)cmdline);
     }
 
-    size_t write_file(const char *path, uint8_t *&src, unsigned int len) {
-        /* read entire file into buffer */
-        FIL fp;
-        FRESULT res = f_open(&fp, path, FA_WRITE | FA_CREATE_ALWAYS);
+    /* once the fdt contains the cmdline, it is not needed */
+    delete[] cmdline;
 
-        logf("Opened file %s with code %d\n", path, res);
-        logf("%s: writing %d bytes from 0x%X ...\n", path, len, (unsigned int) src);
+    /* the eMMC card in particular needs to be reset */
+    teardown_hardware();
+    mmu_off();
+    disable_icache();
 
-        f_write(&fp, src, len, &len);
-        f_close(&fp);
+    run_linux(kernel, fdt);
+  }
+  inline void find_and_mount() {
+    logf("Mounting boot partitiion ...\n");
+    FRESULT r = f_mount(&g_BootVolumeFs, ROOT_VOLUME_PREFIX, 1);
+    if (r != FR_OK) {
+      panic("failed to mount boot partition, error: %d", (int)r);
+    }
+    logf("Boot partition mounted!\n");
+  }
 
-        return len;
+  linux_t load_kernel() {
+    /* read the kernel as a function pointer at fixed address */
+    uint8_t* zImage = reinterpret_cast<uint8_t*>(KERNEL_LOAD_ADDRESS);
+    linux_t kernel = reinterpret_cast<linux_t>(zImage);
+
+    const char *kernelPath[] = {"kernel.img", "kernel1.img", "kernel2.img", "kernell.img", "ker.img", "zImage"};
+    const char *loadPath = "kernel.img";
+    for (auto &path : kernelPath) {
+        if (file_exists(path)) {
+            loadPath = path;
+            break;
+        }
+    }
+    size_t ksize = read_file(loadPath, zImage, false);
+    logf("zImage loaded at 0x%X\n", (unsigned int)kernel);
+    return kernel;
+  }
+
+  uint8_t *load_initrd(size_t *size) {
+    uint8_t *initrd = reinterpret_cast<uint8_t*>(INITRD_LOAD_ADDRESS);
+    *size = read_file("initrd", initrd, false);
+    return initrd;
+  }
+
+  inline void __attribute__((noreturn)) run_linux(linux_t kernel, uint8_t *fdt) {
+    /* fire away -- this should never return */
+
+#if 0
+    logf("stalling until jtag attaches\n");
+    debug_stall();
+#endif
+    logf("Jumping to the Linux kernel...\n");
+    kernel(0, ~0, fdt);
+  }
+
+  bool file_exists(const char* path) {
+    return f_stat(path, NULL) == FR_OK;
+  }
+
+  size_t read_file(const char* path, uint8_t*& dest, bool should_alloc = true) {
+    uint32_t start = ST_CLO;
+    /* ensure file exists first */
+    if(!file_exists(path)) panic("attempted to read %s, but it does not exist", path);
+
+    /* read entire file into buffer */
+    FIL fp;
+    f_open(&fp, path, FA_READ);
+
+    unsigned int len = f_size(&fp);
+
+    if(should_alloc) {
+      /*
+       * since this can be used for strings, there's no harm in reserving an
+       * extra byte for the null terminator and appending it.
+       */
+      uint8_t* buffer = new uint8_t[len + 1];
+      dest = buffer;
+      buffer[len] = 0;
     }
 
-    uint8_t *load_fdt(const char *filename, uint8_t *cmdline) {
-        /* read device tree blob */
-        uint8_t *fdt = reinterpret_cast<uint8_t *>(DTB_LOAD_ADDRESS);
-        size_t sz = read_file(filename, fdt, false);
-        logf("FDT loaded at %X, size is %d\n", (unsigned int) fdt, sz);
+    logf("%s: reading %d bytes to 0x%X ~%dmb...\n", path, len, (unsigned int)dest, ((unsigned int)dest)/1024/1024);
 
-        void *v_fdt = reinterpret_cast<void *>(fdt);
+    f_read(&fp, dest, len, &len);
+    f_close(&fp);
 
-        int res;
+    uint32_t stop = ST_CLO;
+    uint32_t elapsed = stop - start;
 
-        if ((res = fdt_check_header(v_fdt)) != 0) {
-            panic("FDT blob invalid, fdt_check_header returned %d", res);
-        }
+    uint32_t bytes_per_second = (double)len / ((double)(elapsed) / 1000 / 1000);
+    printf("%d kbyte copied at a rate of %ld kbytes/second, CRC32: 0x%x\n", len/1024, bytes_per_second/1024, 0); //rc_crc32(0, (const char*)dest, len));
 
-        /* pass in command line args */
-        res = fdt_open_into(v_fdt, v_fdt, sz + 4096);
+    return len;
+  }
 
-        int node = fdt_path_offset(v_fdt, "/chosen");
-        if (node < 0)
-            panic("no chosen node in fdt");
+  uint8_t *load_fdt(const char *filename, const char *cmdline) {
+      /* read device tree blob */
+      uint8_t *fdt = reinterpret_cast<uint8_t *>(DTB_LOAD_ADDRESS);
+      size_t sz = read_file(filename, fdt, false);
+      logf("FDT loaded at %X, size is %d\n", (unsigned int) fdt, sz);
 
-        res = fdt_setprop(v_fdt, node, "bootargs", cmdline, strlen((char *) cmdline) + 1);
+      void *v_fdt = reinterpret_cast<void *>(fdt);
 
-        /* pass in a memory map, skipping first meg for bootcode */
-        int memory = fdt_path_offset(v_fdt, "/memory");
-        if (memory < 0)
-            panic("no memory node in fdt");
+      int res;
 
-        /* start the memory map at 1M/16 and grow continuous for 256M
-         * TODO: does this disrupt I/O? */
+      if ((res = fdt_check_header(v_fdt)) != 0) {
+          panic("FDT blob invalid, fdt_check_header returned %d", res);
+      }
 
-        char dtype[] = "memory";
-        uint8_t memmap[] = {0x00, 0x00, 0x01, 0x00, 0x30, 0x00, 0x00, 0x00};
-        res = fdt_setprop(v_fdt, memory, "reg", (void *) memmap, sizeof(memmap));
+      /* pass in command line args */
+      res = fdt_open_into(v_fdt, v_fdt, sz + 4096);
 
-        logf("FDT loaded at 0x%X\n", (unsigned int) fdt);
+      int node = fdt_path_offset(v_fdt, "/chosen");
+      if (node < 0)
+          panic("no chosen node in fdt");
 
-        return fdt;
+      res = fdt_setprop(v_fdt, node, "bootargs", cmdline, strlen(cmdline) + 1);
+
+      /* pass in a memory map, skipping first meg for bootcode */
+      int memory = fdt_path_offset(v_fdt, "/memory");
+      if (memory < 0)
+          panic("no memory node in fdt");
+
+      /* start the memory map at 1M/16 and grow continuous for 256M
+        * TODO: does this disrupt I/O? */
+
+      char dtype[] = "memory";
+      uint8_t memmap[] = {0x00, 0x00, 0x01, 0x00, 0x30, 0x00, 0x00, 0x00};
+      res = fdt_setprop(v_fdt, memory, "reg", (void *) memmap, sizeof(memmap));
+
+      logf("FDT loaded at 0x%X\n", (unsigned int) fdt);
+
+      return fdt;
+  }
+
+  uint8_t* load_fdt_and_initrd(const char* filename, const char* cmdline, uint8_t *initrd_start, size_t initrd_size) {
+    /* read device tree blob */
+    uint8_t* fdt = reinterpret_cast<uint8_t*>(DTB_LOAD_ADDRESS);
+    size_t sz = read_file(filename, fdt, false);
+    logf("FDT loaded at %p, size is %d\n", fdt, sz);
+
+    void* v_fdt = reinterpret_cast<void*>(fdt);
+
+    int res;
+
+    if ((res = fdt_check_header(v_fdt)) != 0) {
+      panic("fdt blob invalid, fdt_check_header returned %d", res);
     }
 
-    void teardown_hardware() {
-        BlockDevice *bd = get_sdhost_device();
-        if (bd)
-            bd->stop();
+    res = fdt_open_into(v_fdt, v_fdt, sz + 4096);
+
+    char serial_number[9];
+    hex32(g_FirmwareData.serial, serial_number);
+    // /serial-number is an ascii string containing the serial#
+    res = fdt_setprop(v_fdt, 0, "serial-number", serial_number, 9);
+
+    int ethernet0 = fdt_path_offset(v_fdt, "ethernet0");
+    if (ethernet0 < 0) {
+      panic("cant find ethernet0");
+    } else {
+      uint32_t serial = g_FirmwareData.serial;
+      uint8_t mac[] = { 0xb8
+                      , 0x27
+                      , 0xeb
+                      , (uint8_t)((serial >> 16) & 0xff)
+                      , (uint8_t)((serial >> 8) & 0xff)
+                      , (uint8_t)(serial & 0xff) };
+      res = fdt_setprop(v_fdt, ethernet0, "local-mac-address", mac, 6);
     }
 
-    LoaderImpl() {
-        logf("Mounting boot partition ...\n");
-        FRESULT r = f_mount(&g_BootVolumeFs, ROOT_VOLUME_PREFIX, 1);
-        if (r != FR_OK) {
-            panic("failed to mount boot partition, error: %d", (int) r);
-        }
-        logf("Boot partition mounted!\n");
-
-        /* read the kernel as a function pointer at fixed address */
-        uint8_t *zImage = reinterpret_cast<uint8_t *>(KERNEL_LOAD_ADDRESS);
-        kernel = reinterpret_cast<linux_t>(zImage);
-
-        const char *kernelPath[] = {"kernel.img", "kernel1.img", "kernel2.img", "kernell.img", "ker.img", "zImage"};
-        const char *loadPath = "kernel.img";
-        for (auto &path : kernelPath) {
-            if (file_exists(path)) {
-                loadPath = path;
-                break;
-            }
-        }
-        size_t ksize = read_file(loadPath, zImage, false);
-        logf("Kernel Image loaded at 0x%X\n", (unsigned int) kernel);
-
-        /* TEST FILE WRITE */
-        //size_t wrsz = write_file("testfile.txt", zImage, 128);
-        //logf("size written: %lu\n", wrsz);
-
-        /* read the command-line null-terminated */
-        uint8_t *cmdline;
-        size_t cmdlen = read_file("cmdline.txt", cmdline);
-
-        logf("kernel cmdline: %s\n", cmdline);
-
-        /* load flat device tree */
-        uint8_t *fdt = load_fdt("rpi.dtb", cmdline);
-
-        /* once the fdt contains the cmdline, it is not needed */
-        delete[] cmdline;
-
-        /* flush the cache */
-        logf("Flushing....\n")
-        for (uint8_t *i = zImage; i < zImage + ksize; i += 32) {
-            __asm__ __volatile__ ("mcr p15,0,%0,c7,c10,1" : : "r" (i) : "memory");
-        }
-
-        /* the eMMC card in particular needs to be reset */
-        teardown_hardware();
-
-        /*uint8_t *outname;
-        size_t outname_len = read_file("outname.txt", outname);
-        logf("%s\n", outname);
-        FIL outname_file;
-        f_open(&outname_file, "outname.txt", FA_WRITE);
-        f_truncate(&outname_file);
-        f_write();
-        f_close();*/
-
-        /* fire away -- this should never return */
-        logf("Jumping to the Linux kernel...\n");
-        kernel(0, ~0, fdt);
+    int system = fdt_path_offset(v_fdt, "/system");
+    if (system < 0) {
+      panic("cant find /system");
+    } else {
+      // /system/linux,serial is an 8byte raw serial#
+      // /system/linux,revision is a raw 32bit revision, directly from OTP
+      uint32_t revision = htonl(g_FirmwareData.revision);
+      res = fdt_setprop(v_fdt, system, "linux,revision", &revision, 4);
     }
+
+    int chosen = fdt_path_offset(v_fdt, "/chosen");
+    if (chosen < 0) panic("no chosen node in fdt");
+    else {
+      /* pass in command line args */
+      res = fdt_setprop(v_fdt, chosen, "bootargs", cmdline, strlen((char*) cmdline) + 1);
+      if (initrd_size) {
+        // chosen.txt describes linux,initrd-start and linux,initrd-end within the chosen node
+        uint32_t value = htonl((uint32_t)initrd_start);
+        res = fdt_setprop(v_fdt, chosen, "linux,initrd-start", &value, 4);
+        uint32_t initrd_end = htonl((uint32_t)(initrd_start + initrd_size));
+        res = fdt_setprop(v_fdt, chosen, "linux,initrd-end", &initrd_end, 4);
+      }
+    }
+
+    /* pass in a memory map, skipping first meg for bootcode */
+    int memory = fdt_path_offset(v_fdt, "/memory");
+    if (memory < 0) panic("no memory node in fdt");
+    else {
+      /* start the memory map at 1M/16 and grow continuous for 256M
+       * TODO: does this disrupt I/O? */
+
+      struct mem_entry memmap[] = {
+        { .address = htonl(1024 * 128), .size = htonl(((256) * 1024 * 1024) - (1024 * 128)) },
+        { .address = htonl((256*3) * 1024 * 1024), .size = htonl(16*1024*1024) }
+      };
+      res = fdt_setprop(v_fdt, memory, "reg", (void*) memmap, sizeof(memmap));
+    };
+
+    int soc = fdt_path_offset(v_fdt, "/soc");
+    if (soc < 0) panic("no /soc node in fdt");
+    else {
+      struct ranges ranges[] = {
+        { .child = htonl(VC4_PERIPH_BASE), .parent = htonl(ARM_PERIPH_BASE), .size = htonl(16 * 1024 * 1024) },
+        { .child = htonl(0x40000000), .parent = htonl(0x40000000), .size = htonl(0x1000) }
+      };
+      fdt_setprop(v_fdt, soc, "ranges", (void*)ranges, sizeof(ranges));
+    };
+
+    logf("(valid) fdt loaded at 0x%p\n", fdt);
+
+    return fdt;
+  }
+
+  void teardown_hardware() {
+    BlockDevice* bd = get_sdhost_device();
+    if (bd)
+      bd->stop();
+  }
+
+  const char *detect_model_dtb() {
+    // currently, this detects purely based on the arm model
+    // in future, it should get it from the full board revision, via OTP
+    uint32_t arm_cpuid;
+    // read MIDR reg
+    __asm__("mrc p15, 0, %0, c0, c0, 0" : "=r"(arm_cpuid));
+    // from https://github.com/dwelch67/raspberrypi/blob/master/boards/cpuid/cpuid.c
+    switch (arm_cpuid) {
+    case 0x410FB767:
+      return "rpi1.dtb";
+      break;
+    case 0x410FC075:
+      return "rpi2.dtb";
+      break;
+    case 0x410FD034:
+      return "rpi3.dtb";
+      break;
+    // 410FD083 is cortex A72, rpi4
+    default:
+      logf("unknown rpi model, cpuid is 0x%lx\n", arm_cpuid);
+      return "unknown.dtb";
+    }
+  }
+
 };
 
-static LoaderImpl STATIC_APP
-g_Loader {
-};
+static LoaderImpl STATIC_APP g_Loader {};

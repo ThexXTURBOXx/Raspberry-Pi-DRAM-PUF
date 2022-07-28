@@ -3,7 +3,7 @@
 #include "getparam.c"
 
 #define MENU_SELECT "Select the function to run in the delay time:\r\n \
-0: no operation\r\n 1: add\r\n 2: div|: "
+0: no operation\r\n 1: add\r\n 2: div\r\n 3: sub\r\n 4: mul\r\n 5: mod|: "
 
 void print_hex(uint32_t a, int b) {
     for (int i = b - 1; i >= 0; i--) {
