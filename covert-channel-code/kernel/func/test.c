@@ -223,7 +223,7 @@ void TestAllAddress() {
     mailbox_write(decaytime);
     delay_ms(50);
 
-    delay_s(decaytime);
+    delay_s(decaytime*maxmeasures);
 }
 
 /** 
@@ -281,7 +281,7 @@ void TestPuf() {
     mailbox_write(decaytime);
     delay_ms(50);
 
-    delay_s(decaytime);
+    delay_s(decaytime*maxmeasures);
 
 }
 
@@ -339,7 +339,7 @@ void TestCustom() {
     mailbox_write(decaytime);
     delay_ms(50);
 
-    delay_s(decaytime);
+    delay_s(decaytime*maxmeasures);
 }
 
 /** 
@@ -399,7 +399,7 @@ void TestOneRow() {
     mailbox_write(decaytime);
     delay_ms(50);
 
-    delay_s(decaytime);
+    delay_s(decaytime*maxmeasures);
 }
 
 /** 
@@ -460,7 +460,7 @@ void TestAtInterval() {
     delay_ms(50);
     //delay_s(150);
 
-    delay_s(decaytime);
+    delay_s(decaytime*maxmeasures);
 
     //puf_read_itvl(stradd, endadd, addmode);
 

@@ -27,6 +27,7 @@ First stage monitor.
 #include "getpuf/GetPuf.c"
 
 #define logf(fmt, ...) printf("[SDRAM:%s]: " fmt, __FUNCTION__, ##__VA_ARGS__);
+#define PUF_PARAM_LOAD_ADDRESS 0x4000000 // 64mb from start
 
 struct tagged_packet {
   uint32_t tag;
@@ -56,23 +57,23 @@ bool handle_property_tag(struct tagged_packet *packet) {
   return true;
 }
 
-unsigned int addmode, safemode, bank, row, col, mode, address, funcloc, dcyfunc, nfreq;
-unsigned int stradd, endadd, initvalue, pufsize, decaytime, cputemp, interval, max_measures;
+unsigned int addmode, safemode, mode, funcloc, dcyfunc, nfreq;
+unsigned int stradd, endadd, initvalue, decaytime, max_measures;
 
 int getmode(uint32_t msg)
 {
 	mode=msg;
 	switch (mode)
 	{
-		case  0: printf("\nGet All PUF(bit)\n");
+		case  0: printf("\nMemory dump (bit)\n\n");
 				 break;
-		case  1: printf("\nGet All PUF(cell)\n");
+		case  1: printf("\nGet All PUF (cell)\n\n");
 				 break;
-		case  2: printf("\nGet All PUF(bitflip)\n");
+		case  2: printf("\nGet All PUF (bitflip)\n\n");
 				 break;
-		case  3: printf("\nExtract PUF at Intervals\n");
+		case  3: printf("\nExtract PUF at Intervals\n\n");
 				 break;
-		default: printf("\nTest DRAM PUF\n");
+		default: printf("\nTest DRAM PUF\n\n");
 				 break;
 	}
 
@@ -106,7 +107,7 @@ void get_func_loc(uint32_t msg)
 		printf("\nFunction run on GPU\n\n");
 }
 
-void get_dcy_func(uint32_t msg)
+void get_decay_func(uint32_t msg)
 {
 	dcyfunc=msg;
 
@@ -157,67 +158,25 @@ void cpu_code(uint32_t msg)
 	}
 }
 
-void itvl_start_address(uint32_t msg)
+void get_start_address(uint32_t msg)
 {
 	stradd=msg;
 	printf("\nPUF start address = 0x%08X\n\n",stradd);
 }
 
-void itvl_end_address(uint32_t msg)
+void get_end_address(uint32_t msg)
 {
 	endadd=msg;
 	printf("\nPUF end address = 0x%08X\n\n",endadd);
 }
 
-void itvl_getitvl(uint32_t msg)
-{
-	interval=msg;
-	printf("\nRow Interval = 0x%X\n\n",interval);
-}
-
-void itvl_getinitvalue(uint32_t msg)
+void get_init_value(uint32_t msg)
 {
 	initvalue=msg;
 	printf("\nPUF init value = 0x%08X\n\n",initvalue);
 }
 
-void itvl_getdecaytime(uint32_t msg)
-{
-	decaytime=msg;
-	printf("\ndecaytime = %d s\n\n",decaytime);
-}
-
-void all_start_address(uint32_t msg)
-{
-	stradd=msg;
-	printf("\nPUF start address = 0x%08X\n\n",stradd);
-}
-
-void all_end_address(uint32_t msg)
-{
-	endadd=msg;
-	printf("\nPUF end address = 0x%08X\n\n",endadd);
-}
-
-void all_getinitvalue(uint32_t msg)
-{
-	initvalue=msg;
-	printf("\nPUF init value = 0x%08x\n\n",initvalue);
-}
-
-void all_getdecaytime(uint32_t msg)
-{
-	decaytime=msg;
-	printf("\ndecaytime = %d s\n\n",decaytime);
-}
-
-void ext_getdecaytime(uint32_t msg)
-{
-	decaytime=msg;
-	printf("\ndecaytime = %d s\n\n",decaytime);
-}
-
-void brc_getdecaytime(uint32_t msg)
+void get_decay_time(uint32_t msg)
 {
 	decaytime=msg;
 	printf("\ndecaytime = %d s\n\n",decaytime);
@@ -246,6 +205,10 @@ void execute_puf(uint32_t msg)
 	{
 		cpu_code(msg);
 	}
+	else if (modet==5)
+	{
+		// TODO: Start PUFs from params at PUF_PARAM_LOAD_ADDRESS
+	}
 }
 
 int time=0;
@@ -256,15 +219,6 @@ int time=0;
 bool flag_m=0,flag_mm=0,puf_param_mode=0;
 void get_puf_param(uint32_t msg)
 {
-	// If init values aren't set for some reason
-	if (modet < 0 || time < 0 || time > 10) {
-		time=0;
-		flag_m=0;
-		flag_mm=0;
-		modet=0;
-	}
-	puf_param_mode=1;
-
 	// Respond to kernel
 	if (flag_m==0)
 	{
@@ -281,22 +235,22 @@ void get_puf_param(uint32_t msg)
                      break;
 			case  3: get_func_loc(msg);
 					 break;
-			case  4: all_start_address(msg);
+			case  4: get_start_address(msg);
 					 break;
-			case  5: all_end_address(msg);
+			case  5: get_end_address(msg);
 					 break;
-			case  6: all_getinitvalue(msg);
+			case  6: get_init_value(msg);
 					 break;
-			case  7: get_dcy_func(msg);
+			case  7: get_decay_func(msg);
 					 break;
 			case  8: get_func_freq(msg);
 					 break;
 			case  9: get_max_measures(msg);
 					 break;
-			case  0: all_getdecaytime(msg);
+			case  0: get_decay_time(msg);
 					 flag_mm=1;
 					 time=0;
-					 puf_param_mode=0;
+					 puf_param_mode=false;
 					 break;
 			default: break;
 		}	
@@ -312,22 +266,22 @@ void get_puf_param(uint32_t msg)
                      break;
 			case  3: get_func_loc(msg);
 					 break;
-			case  4: all_start_address(msg);
+			case  4: get_start_address(msg);
 					 break;
-			case  5: all_end_address(msg);
+			case  5: get_end_address(msg);
 					 break;
-			case  6: all_getinitvalue(msg);
+			case  6: get_init_value(msg);
 					 break;
-			case  7: get_dcy_func(msg);
+			case  7: get_decay_func(msg);
 					 break;
 			case  8: get_func_freq(msg);
 					 break;
 			case  9: get_max_measures(msg);
 					 break;
-			case  0: ext_getdecaytime(msg);
+			case  0: get_decay_time(msg);
 					 flag_mm=1;
 					 time=0;
-					 puf_param_mode=0;
+					 puf_param_mode=false;
 					 break;
 			default: break;
 		}	
@@ -343,22 +297,22 @@ void get_puf_param(uint32_t msg)
                      break;
 			case  3: get_func_loc(msg);
 					 break;
-			case  4: all_start_address(msg);
+			case  4: get_start_address(msg);
 					 break;
-			case  5: all_end_address(msg);
+			case  5: get_end_address(msg);
 					 break;
-			case  6: all_getinitvalue(msg);
+			case  6: get_init_value(msg);
 					 break;
-			case  7: get_dcy_func(msg);
+			case  7: get_decay_func(msg);
 					 break;
 			case  8: get_func_freq(msg);
 					 break;
 			case  9: get_max_measures(msg);
 					 break;
-			case  0: brc_getdecaytime(msg);
+			case  0: get_decay_time(msg);
 					 flag_mm=1;
 					 time=0;
-					 puf_param_mode=0;
+					 puf_param_mode=false;
 					 break;
 			default: break;
 		}	
@@ -374,29 +328,35 @@ void get_puf_param(uint32_t msg)
                      break;
 			case  3: get_func_loc(msg);
 					 break;
-			case  4: itvl_start_address(msg);
+			case  4: get_start_address(msg);
 					 break;
-			case  5: itvl_end_address(msg);
+			case  5: get_end_address(msg);
 					 break;
-			case  6: itvl_getinitvalue(msg);
+			case  6: get_init_value(msg);
 					 break;
-			case  7: get_dcy_func(msg);
+			case  7: get_decay_func(msg);
 					 break;
 			case  8: get_func_freq(msg);
 					 break;
 			case  9: get_max_measures(msg);
 					 break;
-			case  0: itvl_getdecaytime(msg);
+			case  0: get_decay_time(msg);
 					 flag_mm=1;
 					 time=0;
-					 puf_param_mode=0;
+					 puf_param_mode=false;
 					 break;
 			default: break;
 		}
 	}
 	else if (modet==4)
 	{
-		puf_param_mode=0;
+		puf_param_mode=false;
+	}
+	else if (modet==5)
+	{
+        uint8_t* puf_params = (uint8_t*) PUF_PARAM_LOAD_ADDRESS;
+		// TODO: Parse PUF params
+		puf_param_mode=false;
 	}
 
 	if(flag_mm==1)
@@ -414,6 +374,12 @@ void get_puf_param(uint32_t msg)
             printf("Starting %dth measurement...\n", i);
 			execute_puf(msg);
 		}
+
+        printf("Measurements done! Restarting kernel...\n");
+
+		// TODO: Send magic number to kernel to restart it
+        /*while ((ARM_1_MAIL0_STA) & ARM_MS_FULL);
+        ARM_1_MAIL0_WRT = 0x01234567;*/
 	}
 }
 
@@ -424,10 +390,19 @@ void get_puf_param(uint32_t msg)
  */
 void arm_monitor_interrupt() {
   uint32_t msg = ARM_1_MAIL1_RD;
-  uint32_t *message = 0;
-  /*printf("VPU MBOX rcv: 0x%lX, cnf 0x%lX\n",
+  printf("VPU MBOX rcv: 0x%lX, cnf 0x%lX\n",
       msg,
-      ARM_1_MAIL1_CNF);*/
+      ARM_1_MAIL1_CNF);
+
+  if (msg == 0x12345678) {
+	// Magic number received; enter param mode
+	time = 0;
+	flag_m = 0;
+	flag_mm = 0;
+	modet = 0;
+	puf_param_mode = true;
+	return;
+  }
 
   if (puf_param_mode) {
 	// Treat all interrupts as params
@@ -435,7 +410,11 @@ void arm_monitor_interrupt() {
 	return;
   }
 
+  uint32_t *message = 0;
   switch (msg & 0xf) {
+  case 1: // framebuffer channel
+    // TODO
+	break;
   case 8: // property tags
     message = (uint32_t*)(msg & ~0xf);
     printf("length: %ld\n", message[0]);
@@ -460,8 +439,7 @@ void arm_monitor_interrupt() {
     ARM_1_MAIL0_WRT = msg;
     break;
   default:
-    //printf("unsupported mailbox channel\n");
-    get_puf_param(msg);
+    printf("unsupported mailbox channel\n");
   }
 }
 

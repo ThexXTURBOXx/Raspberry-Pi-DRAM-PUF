@@ -235,13 +235,21 @@ DRESULT disk_read (BYTE pdrv, BYTE* buff, LBA_t sector, UINT count) {
 }
 
 DRESULT disk_write (BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count) {
-  // TODO: Update like disk_read
-	while (count--) {
-		g_MbrDisk->write_block(pdrv, sector, buff);
-		sector++;
-		buff += g_MbrDisk->get_block_size();
-	}
-	return (DRESULT)0;
+  bool success = true;
+  //uint32_t start = ST_CLO;
+
+  success = g_MbrDisk->write_block(pdrv, sector, buff);
+  if (!success) {
+    printf("error writing part#%d %ld+%d sectors from 0x%lx\n", pdrv, sector, count, (uint32_t)buff);
+    hexdump_ram(buff, sector*512, 512*count);
+    printf("write error\n");
+    return (DRESULT)1;
+  }
+
+  //uint32_t stop = ST_CLO;
+  //if ((stop - start) > 1300) printf("write of sector %ld(%d) took %ld usec\n", sector, count, stop-start);
+
+  return (DRESULT)0;
 }
 
 DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void* buff) {

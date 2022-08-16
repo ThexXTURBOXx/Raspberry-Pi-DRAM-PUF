@@ -17,10 +17,19 @@ static inline uint32_t mmio_read(uint32_t reg)
 /** 
  * Send a 32-bit unsigned integer to the gpu through the mailbox
 **/
-void mailbox_write(uint32_t data) 
+void mailbox_write(uint32_t data)
 {
     while (mmio_read(ARM_0_MAIL1_STA) & ARM_MS_FULL);
     mmio_write(ARM_0_MAIL1_WRT, data);
+}
+
+/** 
+ * Read a 32-bit unsigned integer from the gpu through the mailbox
+**/
+uint32_t mailbox_read()
+{
+    while (mmio_read(ARM_0_MAIL0_STA) & ARM_MS_EMPTY);
+    return mmio_read(ARM_0_MAIL0_RD);
 }
 
 void uart_init()

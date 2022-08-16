@@ -36,15 +36,12 @@ void sendFlag(uint32_t flag) {
     delay_ms(50);
 }
 
-void kernel_main(uint32_t r0, uint32_t r1, uint32_t atags) {
-    // Declare as unused
-    (void) r0;
-    (void) r1;
-    (void) atags;
+void loop() {
+    // Send magic number to enter PUF param mode
+    delay_ms(50);
+    sendFlag(0x12345678);
 
-    //uart_init();
-    uart_putc(0x16);
-    uart_puts("$|Choose mode:\r\n 0: test all addresses (bit)\r\n 1: test all addresses (cell)\r\n 2: test all addresses (bitflip summary)\r\n 3: extract at interval\r\n 4: custom set test|: ");
+    uart_puts("$|Choose mode:\r\n 0: memory dump (bit)\r\n 1: test all addresses (cell)\r\n 2: test all addresses (bitflip summary)\r\n 3: extract at interval\r\n 4: test params in kernel\r\n 5: test params on SD card|: ");
     int input = getmode();
     switch(input) {
         case 0:
@@ -68,15 +65,31 @@ void kernel_main(uint32_t r0, uint32_t r1, uint32_t atags) {
             TestCustom();
             break;
         case 5:
-            sendFlag(4);
-            mailbox_write(0xabcdabcd);
-            delay_s(60);
+            sendFlag(5);
+            // Send any value to start PUF
+            sendFlag(5);
             break;
         default:
             sendFlag(input);
             TestPuf();
             break;
     }
-    while (1) { /* wait */ }
+
+    // TODO: Go back to menu as soon as magic value is received via mailbox
+    /*int8_t loop = 1;
+    while (loop) { if (mailbox_read() == 0x01234567) loop = 0; }*/
+    // Dirty workaround for now: Wait for a single character via UART
+    while (uart_getc() != '#');
+}
+
+void kernel_main(uint32_t r0, uint32_t r1, uint32_t atags) {
+    // Declare as unused
+    (void) r0;
+    (void) r1;
+    (void) atags;
+
+    // uart_init(); // Already initialized in firmware
+    uart_putc(0x16);
+    while (1) { loop(); }
     uart_putc(0x18);
 }

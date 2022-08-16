@@ -484,78 +484,52 @@ printf("\n");
           return true;
   }
 
+	/*virtual bool write_block(uint32_t sector, const uint32_t* buf) override {
+    uint32_t hsts = 0;
+    int copy_words = block_size / sizeof(uint32_t);
+    printf("writing to sector %ld\n", sector);
 
+    int burst_words, words;
+    uint32_t edm;
+    send_raw(MMC_WRITE_BLOCK_SINGLE | SH_CMD_WRITE_CMD_SET, sector);
+    wait();
+    while (copy_words) {
 
-	virtual bool write_block(uint32_t sector, const uint32_t* buf) override {
-		// TODO: How to do this?
-		if (!card_ready)
-			panic("card not ready");
+      burst_words = min(SDDATA_FIFO_PIO_BURST, copy_words);
+      edm = SH_EDM;
+      words = SDDATA_FIFO_WORDS - edm_fifo_fill(edm);
 
-		if (!is_high_capacity)
-			sector <<= 9;
+      if (words < burst_words) {
+        int fsm_state = (edm & SDEDM_FSM_MASK);
 
-		/* drain junk from FIFO */
-		drain_fifo();
+        if (fsm_state != SDEDM_FSM_WRITEDATA &&
+            fsm_state != SDEDM_FSM_WRITEWAIT1 &&
+            fsm_state != SDEDM_FSM_WRITEWAIT2 &&
+            fsm_state != SDEDM_FSM_WRITECRC &&
+            fsm_state != SDEDM_FSM_WRITESTART1 &&
+            fsm_state != SDEDM_FSM_WRITESTART2) {
+          hsts = SH_HSTS;
+          printf("fsm %x, hsts %08x\n", fsm_state, hsts);
+          if (hsts & SDHSTS_ERROR_MASK)
+            break;
+        }
 
-		/* enter WRITE mode */
-		send_raw(MMC_WRITE_BLOCK_MULTIPLE | SH_CMD_WRITE_CMD_SET, sector);
+        continue;
+      } else if (words > copy_words) {
+        words = copy_words;
+      }
 
-		int i;
-		uint32_t hsts_err = 0;
+      copy_words -= words;
 
-#ifdef DUMP_WRITE
-		if (buf)
-			logf("Writing %d bytes to sector %d using FIFO ...\n", block_size, sector);
-#endif
+      while (words) {
+        SH_DATA = *(buf++);
+        words--;
+      }
+    }
+    send_raw(MMC_STOP_TRANSMISSION | SH_CMD_BUSY_CMD_SET);
 
-#ifdef DUMP_WRITE
-		if (buf)
-			printf("----------------------------------------------------\n");
-#endif
-
-		/* drain useful data from FIFO */
-		for (i = 0; i < 128; i++) {
-			/* wait for FIFO */
-			if (!wait_for_fifo_write_access()) {
-				break;
-			}
-
-			/*hsts_err = SH_HSTS & SDHSTS_ERROR_MASK;
-			if (hsts_err) {
-				logf("ERROR: transfer error on FIFO word %d: 0x%x\n", i, SH_HSTS);
-				break;
-			}*/
-
-
-			if (buf) {
-				volatile uint32_t data = *(buf++);
-
-#ifdef DUMP_WRITE
-				printf("%08x ", data);
-#endif
-				SH_DATA = data;
-			}
-		}
-
-		send_raw(MMC_STOP_TRANSMISSION | SH_CMD_BUSY_CMD_SET);
-
-#ifdef DUMP_WRITE
-		if (buf)
-			printf("\n----------------------------------------------------\n");
-#endif
-
-		if (hsts_err) {
-			logf("ERROR: Transfer error, status: 0x%x\n", SH_HSTS);
-			return false;
-		}
-
-#ifdef DUMP_WRITE
-		if (buf)
-			logf("Completed write for %d\n", sector);
-#endif
-		return true;
-	}
-
+    return true;
+  }*/
 
   bool select_card() {
     send(MMC_SELECT_CARD, MMC_ARG_RCA(rca));
@@ -753,6 +727,504 @@ printf("\n");
     restart_controller();
     logf("eMMC driver sucessfully started!\n");
   }
+
+  /* WRITE STUFF */
+
+
+// Adapted from https://github.com/ARM-software/u-boot/blob/master/drivers/mmc/bcm2835_sdhost.c
+// and https://github.com/zeoneo/rpi-3b-wifi/blob/master/src/sdhost.c
+
+// Quick hack to make min work here
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+#define SDDATA_FIFO_PIO_BURST	8
+#define SDDATA_FIFO_WORDS	    16
+
+#define SDEDM_FIFO_FILL_SHIFT	4
+#define SDEDM_FIFO_FILL_MASK	0x1f
+static uint32_t edm_fifo_fill(uint32_t edm) {
+  return (edm >> SDEDM_FIFO_FILL_SHIFT) & SDEDM_FIFO_FILL_MASK;
+}
+#define LOG_DEBUG           printf
+#define MicroDelay          udelay
+#define BIT(nr)		(1 << (nr))
+#define MMC_DATA_READ		1
+#define MMC_DATA_WRITE		2
+#define MMC_RSP_PRESENT (1 << 0)
+#define MMC_RSP_136	(1 << 1)		/* 136 bit response */
+#define MMC_RSP_CRC	(1 << 2)		/* expect valid crc */
+#define MMC_RSP_BUSY	(1 << 3)		/* card may send busy */
+#define MMC_RSP_OPCODE	(1 << 4)		/* response contains opcode */
+#define SDHST_TIMEOUT_MAX_USEC 1000
+#define MMC_CMD_GO_IDLE_STATE		0
+#define MMC_CMD_SEND_OP_COND		1
+#define MMC_CMD_ALL_SEND_CID		2
+#define MMC_CMD_SET_RELATIVE_ADDR	3
+#define MMC_CMD_SET_DSR			4
+#define MMC_CMD_SWITCH			6
+#define MMC_CMD_SELECT_CARD		7
+#define MMC_CMD_SEND_EXT_CSD		8
+#define MMC_CMD_SEND_CSD		9
+#define MMC_CMD_SEND_CID		10
+#define MMC_CMD_STOP_TRANSMISSION	12
+#define MMC_CMD_SEND_STATUS		13
+#define MMC_CMD_SET_BLOCKLEN		16
+#define MMC_CMD_READ_SINGLE_BLOCK	17
+#define MMC_CMD_READ_MULTIPLE_BLOCK	18
+#define MMC_CMD_SEND_TUNING_BLOCK		19
+#define MMC_CMD_SEND_TUNING_BLOCK_HS200	21
+#define MMC_CMD_SET_BLOCK_COUNT         23
+#define MMC_CMD_WRITE_SINGLE_BLOCK	24
+#define MMC_CMD_WRITE_MULTIPLE_BLOCK	25
+#define MMC_CMD_ERASE_GROUP_START	35
+#define MMC_CMD_ERASE_GROUP_END		36
+#define MMC_CMD_ERASE			38
+#define MMC_CMD_APP_CMD			55
+#define MMC_CMD_SPI_READ_OCR		58
+#define MMC_CMD_SPI_CRC_ON_OFF		59
+#define MMC_CMD_RES_MAN			62
+#define SDEDM_FORCE_DATA_MODE BIT(19)
+#define NULL                0
+#define SDCMD_CMD_MASK      0x3f
+
+struct mmc_cmd {
+	unsigned short cmdidx;
+	unsigned int resp_type;
+	unsigned int cmdarg;
+	unsigned int response[4];
+};
+
+struct mmc_data {
+	union {
+		char *dest;
+		const char *src; /* src buffers don't get written to */
+	};
+	unsigned int flags;
+	unsigned int blocks;
+	unsigned int blocksize;
+};
+
+struct __attribute__((__packed__, aligned(4))) sdhost_state {
+    uint32_t blocks;
+    uint8_t use_busy;
+    struct mmc_cmd* cmd;
+    struct mmc_data* data;
+};
+
+  static inline int is_power_of_2(uint64_t x) {
+      return !(x & (x - 1));
+  }
+
+static int bcm2835_read_wait_sdcmd() {
+    int timeout = 1000;
+    while ((SH_CMD & SH_CMD_NEW_FLAG_SET) && --timeout > 0) {
+        MicroDelay(SDHST_TIMEOUT_MAX_USEC);
+    }
+
+    // Timeout counter is either zero or -1
+    if (timeout <= 0) {
+        LOG_DEBUG("%s: timeout (%d us)\n", __func__, SDHST_TIMEOUT_MAX_USEC);
+    }
+    return SH_CMD;
+}
+
+static void bcm2835_prepare_data(struct sdhost_state* host, struct mmc_data* data) {
+    // LOG_DEBUG("preparing data \n ");
+
+    host->data = data;
+    if (!data)
+        return;
+
+    /* Use PIO */
+    host->blocks = data->blocks;
+
+    SH_HBCT = data->blocksize;
+    SH_HBLC = data->blocks;
+}
+
+  static int bcm2835_send_command(struct sdhost_state* host, struct mmc_cmd* cmd, struct mmc_data* data) {
+      uint32_t sdcmd, sdhsts;
+
+      // LOG_DEBUG("Command Index %d \n", cmd->cmdidx);
+
+      if ((cmd->resp_type & MMC_RSP_136) && (cmd->resp_type & MMC_RSP_BUSY)) {
+          LOG_DEBUG("unsupported response type!\n");
+          return -1;
+      }
+
+      sdcmd = bcm2835_read_wait_sdcmd();
+      if (sdcmd & SH_CMD_NEW_FLAG_SET) {
+          LOG_DEBUG("previous command never completed.\n");
+          //bcm2835_dumpregs();
+          return -2;
+      }
+
+      host->cmd = cmd;
+      // LOG_DEBUG("Host cmd: %x host->cmd->resp_type:%d %d\n", host->cmd, host->cmd->resp_type, cmd->resp_type);
+
+      /* Clear any error flags */
+      sdhsts = SH_HSTS;
+      // bcm2835_dumpregs();
+      if (sdhsts & SDHSTS_ERROR_MASK) {
+        SH_HSTS = sdhsts;
+      }
+
+      SH_ARG = 0;
+      MicroDelay(1000);
+      bcm2835_prepare_data(host, data);
+      // LOG_DEBUG("Starting command execution arg: %x \n", cmd->cmdarg);
+      SH_ARG = cmd->cmdarg;
+
+      sdcmd = cmd->cmdidx & SDCMD_CMD_MASK;
+      // LOG_DEBUG("Starting command execution sdcmd: %x \n", sdcmd);
+
+      host->use_busy = 0;
+      if (!(cmd->resp_type & MMC_RSP_PRESENT)) {
+          sdcmd |= SH_CMD_NO_RESPONSE_SET;
+      } else {
+          if (cmd->resp_type & MMC_RSP_136)
+              sdcmd |= SH_CMD_LONG_RESPONSE_SET;
+          if (cmd->resp_type & MMC_RSP_BUSY) {
+              sdcmd |= SH_CMD_BUSY_CMD_SET;
+              host->use_busy = 1;
+          }
+      }
+
+      if (data) {
+          if (data->flags & MMC_DATA_WRITE)
+              sdcmd |= SH_CMD_WRITE_CMD_SET;
+          if (data->flags & MMC_DATA_READ)
+              sdcmd |= SH_CMD_READ_CMD_SET;
+      }
+
+      SH_CMD = sdcmd | SH_CMD_NEW_FLAG_SET;
+      // LOG_DEBUG("Ebnding command execution sdcmd: %x \n", sdcmd);
+      return 0;
+  }
+
+static int bcm2835_finish_command(struct sdhost_state* host) {
+    struct mmc_cmd* cmd = host->cmd;
+    uint32_t sdcmd;
+    int ret = 0;
+
+    sdcmd = bcm2835_read_wait_sdcmd();
+
+    /* Check for errors */
+    if (sdcmd & SH_CMD_NEW_FLAG_SET) {
+        LOG_DEBUG("command never completed. sdcmd: %x SH_CMD_NEW_FLAG_SET: %x\n", sdcmd, SH_CMD_NEW_FLAG_SET);
+        //bcm2835_dumpregs();
+        return -1;
+    } else if (sdcmd & SH_CMD_FAIL_FLAG_SET) {
+
+        uint32_t sdhsts = SH_HSTS;
+        if (sdhsts & SDHSTS_ERROR_MASK) {
+            LOG_DEBUG("command Failed Check Error. sdcmd: %x status: %x\n", sdcmd, sdhsts);
+            return -1;
+        }
+        LOG_DEBUG("command Failed Unknown Error. sdcmd: %x status: %x\n", sdcmd, sdhsts);
+        return -1;
+
+        /* Clear the errors */
+        SH_HSTS = SDHSTS_ERROR_MASK;
+
+        if (!(sdhsts & SDHSTS_CRC7_ERROR) || (host->cmd->cmdidx != MMC_CMD_SEND_OP_COND)) {
+            if (sdhsts & SDHSTS_CMD_TIME_OUT) {
+                LOG_DEBUG("unexpected error cond1:%d cond2:%d \n", (!(sdhsts & SDHSTS_CRC7_ERROR)),
+                          (host->cmd->cmdidx != MMC_CMD_SEND_OP_COND));
+                //bcm2835_dumpregs(host);
+                ret = -1;
+            } else {
+                LOG_DEBUG("unexpected command %d error\n", host->cmd->cmdidx);
+                cmd->response[0] = SH_RSP0;
+                cmd->response[1] = SH_RSP1;
+                cmd->response[2] = SH_RSP2;
+                cmd->response[3] = SH_RSP3;
+                //bcm2835_dumpregs(host);
+                ret = -2;
+            }
+            return ret;
+        }
+    }
+    // LOG_DEBUG("Is command %d AA\n", cmd->resp_type);
+    if (cmd->resp_type & MMC_RSP_PRESENT) {
+        // LOG_DEBUG("Is command %d  BB\n", cmd->resp_type);
+        if (cmd->resp_type & MMC_RSP_136) {
+            cmd->response[0] = SH_RSP0;
+            cmd->response[1] = SH_RSP1;
+            cmd->response[2] = SH_RSP2;
+            cmd->response[3] = SH_RSP3;
+            // bcm2835_dumpregs();
+        } else {
+            cmd->response[0] = SH_RSP0;
+            // LOG_DEBUG("Is else command %d \n", cmd->resp_type);
+        }
+    }
+    // bcm2835_dumpregs(host);
+    /* Processed actual command. */
+    host->cmd = NULL;
+    // printf("Returning bcm2835_finish_command \n");
+    return ret;
+}
+
+static int bcm2835_wait_transfer_complete() {
+    int timediff = 0;
+
+    while (1) {
+        uint32_t edm, fsm;
+
+        edm = SH_EDM;
+        fsm = edm & SDEDM_FSM_MASK;
+
+        if ((fsm == SDEDM_FSM_IDENTMODE) || (fsm == SDEDM_FSM_DATAMODE))
+            break;
+
+        if ((fsm == SDEDM_FSM_READWAIT) || (fsm == SDEDM_FSM_WRITESTART1) || (fsm == SDEDM_FSM_READDATA)) {
+            SH_EDM = edm | SDEDM_FORCE_DATA_MODE;
+            break;
+        }
+
+        /* Error out after 100000 register reads (~1s) */
+        if (timediff++ == 200000) {
+            LOG_DEBUG("wait_transfer_complete - still waiting after %d retries\n", timediff);
+            // bcm2835_dumpregs();
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int bcm2835_transfer_block_pio(struct sdhost_state* host, bool is_read) {
+    struct mmc_data* data = host->data;
+    size_t blksize        = data->blocksize;
+    int copy_words;
+    uint32_t hsts = 0;
+    uint32_t* buf;
+
+    if (blksize % sizeof(uint32_t)) {
+        LOG_DEBUG("Size error \n");
+        return -1;
+    }
+
+    buf = is_read ? (uint32_t*) data->dest : (uint32_t*) data->src;
+
+    if (is_read) {
+        data->dest += blksize;
+    } else {
+        data->src += blksize;
+    }
+
+    copy_words = blksize / sizeof(uint32_t);
+
+    /*
+     * Copy all contents from/to the FIFO as far as it reaches,
+     * then wait for it to fill/empty again and rewind.
+     */
+    while (copy_words) {
+        int burst_words, words;
+        uint32_t edm;
+
+        burst_words = min(SDDATA_FIFO_PIO_BURST, copy_words);
+        edm         = SH_EDM;
+        if (is_read) {
+            words = edm_fifo_fill(edm);
+        } else {
+            words = SDDATA_FIFO_WORDS - edm_fifo_fill(edm);
+        }
+
+        if (words < burst_words) {
+            int fsm_state = (edm & SDEDM_FSM_MASK);
+
+            if ((is_read && (fsm_state != SDEDM_FSM_READDATA && fsm_state != SDEDM_FSM_READWAIT &&
+                             fsm_state != SDEDM_FSM_READCRC)) ||
+                (!is_read && (fsm_state != SDEDM_FSM_WRITEDATA && fsm_state != SDEDM_FSM_WRITEWAIT1 &&
+                              fsm_state != SDEDM_FSM_WRITEWAIT2 && fsm_state != SDEDM_FSM_WRITECRC &&
+                              fsm_state != SDEDM_FSM_WRITESTART1 && fsm_state != SDEDM_FSM_WRITESTART2))) {
+
+                hsts = SH_HSTS;
+                LOG_DEBUG("fsm %x, hsts %08x\n", fsm_state, hsts);
+                if (hsts & SDHSTS_ERROR_MASK) {
+                    break;
+                }
+            }
+            continue;
+        } else if (words > copy_words) {
+            words = copy_words;
+        }
+        copy_words -= words;
+
+        /* Copy current chunk to/from the FIFO */
+        while (words) {
+            if (is_read)
+                *(buf++) = SH_DATA;
+            else
+                SH_DATA = *(buf++);
+            words--;
+        }
+    }
+
+    return 0;
+}
+
+static int bcm2835_transfer_pio(struct sdhost_state* host) {
+    uint32_t sdhsts;
+    bool is_read;
+    int ret = 0;
+
+    is_read = (host->data->flags & MMC_DATA_READ) != 0;
+    ret     = bcm2835_transfer_block_pio(host, is_read);
+    if (ret)
+        return ret;
+
+    sdhsts = SH_HSTS;
+    if (sdhsts & (SDHSTS_CRC16_ERROR | SDHSTS_CRC7_ERROR | SDHSTS_FIFO_ERROR)) {
+        LOG_DEBUG("%s transfer error - HSTS %08x\n", is_read ? "read" : "write", sdhsts);
+        ret = -1;
+    } else if ((sdhsts & (SDHSTS_CMD_TIME_OUT | SDHSTS_REW_TIME_OUT))) {
+        LOG_DEBUG("%s timeout error - HSTS %08x\n", is_read ? "read" : "write", sdhsts);
+        ret = -2;
+    }
+
+    return ret;
+}
+
+static int bcm2835_check_cmd_error(struct sdhost_state* host, uint32_t intmask) {
+    int ret = -1;
+
+    if (!(intmask & SDHSTS_ERROR_MASK))
+        return 0;
+
+    if (!host->cmd)
+        return -1;
+
+    LOG_DEBUG("sdhost_busy_irq: intmask %08x\n", intmask);
+    if (intmask & SDHSTS_CRC7_ERROR) {
+        ret = -2;
+    } else if (intmask & (SDHSTS_CRC16_ERROR | SDHSTS_FIFO_ERROR)) {
+        ret = -2;
+    } else if (intmask & (SDHSTS_REW_TIME_OUT | SDHSTS_CMD_TIME_OUT)) {
+        ret = -3;
+    }
+    //bcm2835_dumpregs();
+    return ret;
+}
+
+static int bcm2835_check_data_error(struct sdhost_state* host, uint32_t intmask) {
+    int ret = 0;
+
+    if (!host->data)
+        return 0;
+    if (intmask & (SDHSTS_CRC16_ERROR | SDHSTS_FIFO_ERROR))
+        ret = -1;
+    if (intmask & SDHSTS_REW_TIME_OUT)
+        ret = -2;
+
+    if (ret)
+        LOG_DEBUG("%s:%d %d\n", __func__, __LINE__, ret);
+
+    return ret;
+}
+
+static int bcm2835_transmit(struct sdhost_state* host) {
+    uint32_t intmask = SH_HSTS;
+    int ret;
+
+    /* Check for errors */
+    ret = bcm2835_check_data_error(host, intmask);
+    if (ret) {
+        LOG_DEBUG("Data error");
+        return ret;
+    }
+
+    ret = bcm2835_check_cmd_error(host, intmask);
+    if (ret) {
+        LOG_DEBUG("cmd error");
+        return ret;
+    }
+
+    /* Handle wait for busy end */
+    if (host->use_busy && (intmask & SDHSTS_BUSY_IRPT)) {
+        SH_HSTS = SDHSTS_BUSY_IRPT;
+        host->use_busy = false;
+        bcm2835_finish_command(host);
+    }
+
+    /* Handle PIO data transfer */
+    if (host->data) {
+        ret = bcm2835_transfer_pio(host);
+        if (ret)
+            return ret;
+        host->blocks--;
+        if (host->blocks == 0) {
+            /* Wait for command to complete for real */
+            ret = bcm2835_wait_transfer_complete();
+            if (ret)
+                return ret;
+            /* Transfer complete */
+            host->data = NULL;
+        }
+    }
+    LOG_DEBUG("Return %s \n", __func__);
+    return 0;
+}
+
+int bcm2835_send_cmd(struct sdhost_state* host, struct mmc_cmd* cmd, struct mmc_data* data) {
+    uint32_t edm, fsm;
+    int ret = 0;
+    // LOG_DEBUG("received command : %d \n ", cmd->cmdidx);
+
+    edm = SH_EDM;
+    fsm = edm & SDEDM_FSM_MASK;
+
+    if ((fsm != SDEDM_FSM_IDENTMODE) && (fsm != SDEDM_FSM_DATAMODE) &&
+        (cmd->cmdidx != MMC_STOP_TRANSMISSION)) {
+        LOG_DEBUG("previous command (%d) not complete (EDM %08x)\n", SH_CMD & SDCMD_CMD_MASK, edm);
+        //bcm2835_dumpregs(host);
+
+        if (cmd) {
+            LOG_DEBUG("Error command \n");
+            return -1;
+        }
+        return 0;
+    }
+
+    // LOG_DEBUG("Previous command  %x \n", readl(SDCMD));
+    if (cmd) {
+        ret = bcm2835_send_command(host, cmd, data);
+        if (!ret && !host->use_busy) {
+            ret = bcm2835_finish_command(host);
+        }
+    }
+
+    /* Wait for completion of busy signal or data transfer */
+    while (host->use_busy || host->data) {
+        LOG_DEBUG("host->use_busy : %d host->data: %x \n", host->use_busy, host->data);
+        ret = bcm2835_transmit(host);
+        if (ret) {
+            break;
+        }
+    }
+    // LOG_DEBUG("Return from command: \n");
+    return ret;
+}
+
+	virtual bool write_block(uint32_t sector, const uint32_t* buf) override {
+    struct sdhost_state host;
+    struct mmc_cmd cmd;
+    struct mmc_data data;
+    host.blocks = 1;
+    host.use_busy = 0;
+    host.cmd = &cmd;
+    host.data = &data;
+    cmd.cmdidx = MMC_CMD_WRITE_SINGLE_BLOCK;
+    cmd.resp_type = 0;
+    cmd.cmdarg = sector;
+    data.src = reinterpret_cast<const char*>(buf);
+    data.flags = MMC_DATA_WRITE;
+    data.blocks = 1;
+    data.blocksize = block_size;
+    bcm2835_send_cmd(&host, &cmd, &data);
+    return true;
+	}
 };
 
 BCM2708SDHost *g_SDHostDriver;

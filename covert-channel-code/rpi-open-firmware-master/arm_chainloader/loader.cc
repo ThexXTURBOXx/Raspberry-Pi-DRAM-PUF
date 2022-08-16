@@ -39,9 +39,10 @@ Second stage bootloader.
 FATFS g_BootVolumeFs;
 
 #define ROOT_VOLUME_PREFIX "0:"
-#define DTB_LOAD_ADDRESS    0xF000000 // 240mb from start
-#define KERNEL_LOAD_ADDRESS 0x2000000 // 32mb from start
-#define INITRD_LOAD_ADDRESS 0x4000000 // 64mb from start
+#define DTB_LOAD_ADDRESS       0xF000000 // 240 mb from start
+#define KERNEL_LOAD_ADDRESS    0x2000000 // 32 mb from start
+#define INITRD_LOAD_ADDRESS    0x4100000 // 64.x mb from start
+#define PUF_PARAM_LOAD_ADDRESS 0x4000000 // 64 mb from start
 
 typedef void __attribute__((noreturn)) (*linux_t)(uint32_t, uint32_t, void*);
 
@@ -96,7 +97,17 @@ struct LoaderImpl {
 
     logf("kernel cmdline: %s\n", cmdline);
 
-      /* load flat device tree */
+    /* read PUF params file if it exists */
+    uint8_t* puf_params = reinterpret_cast<uint8_t*>(PUF_PARAM_LOAD_ADDRESS);
+    size_t paramlen = read_file("pufs.txt", puf_params, false, false);
+    if (paramlen) {
+      logf("loaded puf params: %s\n", puf_params);
+    }
+
+    const char* teststr = "hello there\nkk";
+    write_file("h.txt", (const uint8_t*) teststr, 14);
+
+    /* load flat device tree */
     uint8_t* fdt;
     if (do_load_initrd) {
       const char *dtb_name = detect_model_dtb();
@@ -115,6 +126,7 @@ struct LoaderImpl {
 
     run_linux(kernel, fdt);
   }
+
   inline void find_and_mount() {
     logf("Mounting boot partitiion ...\n");
     FRESULT r = f_mount(&g_BootVolumeFs, ROOT_VOLUME_PREFIX, 1);
@@ -163,10 +175,18 @@ struct LoaderImpl {
     return f_stat(path, NULL) == FR_OK;
   }
 
-  size_t read_file(const char* path, uint8_t*& dest, bool should_alloc = true) {
+  size_t read_file(const char* path, uint8_t*& dest, bool should_alloc = true, bool panicIfNotExists = true) {
     uint32_t start = ST_CLO;
     /* ensure file exists first */
-    if(!file_exists(path)) panic("attempted to read %s, but it does not exist", path);
+    if(!file_exists(path)) {
+      if(panicIfNotExists) {
+        panic("attempted to read %s, but it does not exist, error=%d", path, f_stat(path, NULL));
+      } else {
+        logf("attempted to read %s, but it does not exist, error=%d", path, f_stat(path, NULL));
+      }
+      // Never reached if panic
+      return 0;
+    }
 
     /* read entire file into buffer */
     FIL fp;
@@ -181,12 +201,32 @@ struct LoaderImpl {
        */
       uint8_t* buffer = new uint8_t[len + 1];
       dest = buffer;
-      buffer[len] = 0;
     }
+    dest[len] = 0;
 
     logf("%s: reading %d bytes to 0x%X ~%dmb...\n", path, len, (unsigned int)dest, ((unsigned int)dest)/1024/1024);
 
     f_read(&fp, dest, len, &len);
+    f_close(&fp);
+
+    uint32_t stop = ST_CLO;
+    uint32_t elapsed = stop - start;
+
+    uint32_t bytes_per_second = (double)len / ((double)(elapsed) / 1000 / 1000);
+    printf("%d kbyte copied at a rate of %ld kbytes/second, CRC32: 0x%x\n", len/1024, bytes_per_second/1024, 0); //rc_crc32(0, (const char*)dest, len));
+
+    return len;
+  }
+
+  size_t write_file(const char* path, const uint8_t* src, unsigned int len, BYTE mode = FA_CREATE_ALWAYS | FA_CREATE_NEW) {
+    uint32_t start = ST_CLO;
+
+    FIL fp;
+    f_open(&fp, path, FA_WRITE | mode);
+
+    logf("Writing %d bytes to %s...\n", len, path);
+
+    f_write(&fp, src, len, &len);
     f_close(&fp);
 
     uint32_t stop = ST_CLO;

@@ -30,7 +30,7 @@
       #define SH_CMD_LONG_RESPONSE_MSB                           9
       #define SH_CMD_LONG_RESPONSE_LSB                           9
       #define SH_CMD_WRITE_CMD_BITS                              8:7
-      #define SH_CMD_WRITE_CMD_SET                               0x00000180
+      #define SH_CMD_WRITE_CMD_SET                               0x00000080 // This was wrong and took me literally at least 12 hours to figure out... - Nico
       #define SH_CMD_WRITE_CMD_CLR                               0xfffffe7f
       #define SH_CMD_WRITE_CMD_MSB                               8
       #define SH_CMD_WRITE_CMD_LSB                               7
