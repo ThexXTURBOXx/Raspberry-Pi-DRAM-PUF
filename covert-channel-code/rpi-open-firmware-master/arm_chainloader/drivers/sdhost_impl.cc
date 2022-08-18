@@ -744,7 +744,7 @@ printf("\n");
 static uint32_t edm_fifo_fill(uint32_t edm) {
   return (edm >> SDEDM_FIFO_FILL_SHIFT) & SDEDM_FIFO_FILL_MASK;
 }
-#define LOG_DEBUG           printf
+#define LOG_DEBUG           //printf
 #define MicroDelay          udelay
 #define BIT(nr)		(1 << (nr))
 #define MMC_DATA_READ		1
@@ -782,6 +782,13 @@ static uint32_t edm_fifo_fill(uint32_t edm) {
 #define MMC_CMD_SPI_READ_OCR		58
 #define MMC_CMD_SPI_CRC_ON_OFF		59
 #define MMC_CMD_RES_MAN			62
+#define MMC_STATUS_RDY_FOR_DATA (1 << 8)
+#define MMC_STATUS_CURR_STATE	(0xf << 9)
+#define MMC_STATUS_MASK		(~0x0206BF7F)
+#define MMC_STATE_PRG		(7 << 9)
+#define MMC_RSP_R1	(MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE)
+#define MMC_RSP_R1b	(MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE| \
+			MMC_RSP_BUSY)
 #define SDEDM_FORCE_DATA_MODE BIT(19)
 #define NULL                0
 #define SDCMD_CMD_MASK      0x3f
@@ -897,7 +904,7 @@ static void bcm2835_prepare_data(struct sdhost_state* host, struct mmc_data* dat
       }
 
       SH_CMD = sdcmd | SH_CMD_NEW_FLAG_SET;
-      // LOG_DEBUG("Ebnding command execution sdcmd: %x \n", sdcmd);
+      // LOG_DEBUG("Ending command execution sdcmd: %x \n", sdcmd);
       return 0;
   }
 
@@ -1119,7 +1126,7 @@ static int bcm2835_check_data_error(struct sdhost_state* host, uint32_t intmask)
         ret = -2;
 
     if (ret)
-        LOG_DEBUG("%s:%d %d\n", __func__, __LINE__, ret);
+        LOG_DEBUG("%s:%d Mask: %lx Error: %d\n", __func__, __LINE__, intmask, ret);
 
     return ret;
 }
@@ -1127,17 +1134,18 @@ static int bcm2835_check_data_error(struct sdhost_state* host, uint32_t intmask)
 static int bcm2835_transmit(struct sdhost_state* host) {
     uint32_t intmask = SH_HSTS;
     int ret;
+    LOG_DEBUG("Transmit, SH_HSTS: %x\n", intmask);
 
     /* Check for errors */
     ret = bcm2835_check_data_error(host, intmask);
     if (ret) {
-        LOG_DEBUG("Data error");
+        LOG_DEBUG("Data error\n");
         return ret;
     }
 
     ret = bcm2835_check_cmd_error(host, intmask);
     if (ret) {
-        LOG_DEBUG("cmd error");
+        LOG_DEBUG("Cmd error\n");
         return ret;
     }
 
@@ -1181,7 +1189,7 @@ int bcm2835_send_cmd(struct sdhost_state* host, struct mmc_cmd* cmd, struct mmc_
         //bcm2835_dumpregs(host);
 
         if (cmd) {
-            LOG_DEBUG("Error command \n");
+            LOG_DEBUG("Error command\n");
             return -1;
         }
         return 0;
@@ -1197,7 +1205,11 @@ int bcm2835_send_cmd(struct sdhost_state* host, struct mmc_cmd* cmd, struct mmc_
 
     /* Wait for completion of busy signal or data transfer */
     while (host->use_busy || host->data) {
-        LOG_DEBUG("host->use_busy : %d host->data: %x \n", host->use_busy, host->data);
+      if (host->data)
+        LOG_DEBUG("host->use_busy: %d host->data: %x|%d|%d|%x|%x\n", host->use_busy, host->data,
+            host->data->blocks, host->data->blocksize, host->data->src, host->data->flags);
+      else
+        LOG_DEBUG("host->use_busy: %d host->data: %x\n", host->use_busy, host->data);
         ret = bcm2835_transmit(host);
         if (ret) {
             break;
@@ -1207,22 +1219,88 @@ int bcm2835_send_cmd(struct sdhost_state* host, struct mmc_cmd* cmd, struct mmc_
     return ret;
 }
 
-	virtual bool write_block(uint32_t sector, const uint32_t* buf) override {
-    struct sdhost_state host;
+int mmc_send_status(struct sdhost_state *host, int timeout)
+{
+	struct mmc_cmd cmd;
+	int err, retries = 5;
+
+	cmd.cmdidx = MMC_CMD_SEND_STATUS;
+	cmd.resp_type = MMC_RSP_R1;
+	cmd.cmdarg = rca << 16;
+
+	while (1) {
+		err = bcm2835_send_cmd(host, &cmd, NULL);
+		if (!err) {
+			if ((cmd.response[0] & MMC_STATUS_RDY_FOR_DATA) &&
+			    (cmd.response[0] & MMC_STATUS_CURR_STATE) !=
+			     MMC_STATE_PRG)
+				break;
+
+			if (cmd.response[0] & MMC_STATUS_MASK) {
+#if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
+				LOG_DEBUG("Status Error: 0x%08X\n",
+				       cmd.response[0]);
+#endif
+				return -1;
+			}
+		} else if (--retries < 0)
+			return err;
+
+		if (timeout-- <= 0)
+			break;
+
+		udelay(1000);
+	}
+
+	if (timeout <= 0) {
+#if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
+		LOG_DEBUG("Timeout waiting card ready\n");
+#endif
+		return -2;
+	}
+
+	return 0;
+}
+
+void mmc_write_blocks(struct sdhost_state *host, uint32_t sector, uint32_t count, const uint32_t* buf) {
     struct mmc_cmd cmd;
     struct mmc_data data;
-    host.blocks = 1;
-    host.use_busy = 0;
-    host.cmd = &cmd;
-    host.data = &data;
-    cmd.cmdidx = MMC_CMD_WRITE_SINGLE_BLOCK;
-    cmd.resp_type = 0;
-    cmd.cmdarg = sector;
+    printf("mmc_write_blocks: sector:%d count:%d\n", sector, count);
+    cmd.cmdidx = count == 1 ? MMC_CMD_WRITE_SINGLE_BLOCK : MMC_CMD_WRITE_MULTIPLE_BLOCK;
+    cmd.resp_type = MMC_RSP_R1;
+    cmd.cmdarg = sector * block_size;
     data.src = reinterpret_cast<const char*>(buf);
     data.flags = MMC_DATA_WRITE;
-    data.blocks = 1;
+    data.blocks = count;
     data.blocksize = block_size;
-    bcm2835_send_cmd(&host, &cmd, &data);
+    bcm2835_send_cmd(host, &cmd, &data);
+    if (count > 1) {
+      cmd.cmdidx = MMC_CMD_STOP_TRANSMISSION;
+      cmd.resp_type = MMC_RSP_R1b;
+      cmd.cmdarg = 0;
+      if (bcm2835_send_cmd(host, &cmd, NULL)) {
+        printf("mmc fail to send stop cmd\n");
+        return;
+      }
+    }
+
+	  mmc_send_status(host, 1000);
+}
+
+	virtual bool write_block(uint32_t sector, const uint32_t* buf, uint32_t count) override {
+    struct sdhost_state host;
+    host.blocks = 0;
+    host.cmd = 0;
+    host.data = 0;
+    host.use_busy = 0;
+    unsigned long cur, blocks_todo = count;
+    do {
+      cur = blocks_todo;
+      mmc_write_blocks(&host, sector, cur, buf);
+      blocks_todo -= cur;
+      sector += cur;
+      buf += cur * block_size;
+    } while (blocks_todo > 0);
     return true;
 	}
 };
@@ -1234,6 +1312,6 @@ void sdhost_init() {
 }
 
 BlockDevice* get_sdhost_device() {
-  if (!g_SDHostDriver) panic("sdhost not initialized yet");
+  if (!g_SDHostDriver) panic("sdhost not initialized yet\n");
   return g_SDHostDriver;
 }

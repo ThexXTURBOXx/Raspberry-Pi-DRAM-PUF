@@ -104,8 +104,17 @@ struct LoaderImpl {
       logf("loaded puf params: %s\n", puf_params);
     }
 
-    const char* teststr = "hello there\nkk";
-    write_file("h.txt", (const uint8_t*) teststr, 14);
+    uint8_t* teststr = new uint8_t[7*256*4];
+    long l = 0;
+    for (long i = 0; i < 4; i++) {
+          for (long j = 0; j < 256; j++) {
+                for (long k = 0; k < 7; k++) {
+                  teststr[l++] = j;
+                }
+          }
+    }
+    write_file("h.txt", teststr, 7*256*4);
+    delete[] teststr;
 
     /* load flat device tree */
     uint8_t* fdt;

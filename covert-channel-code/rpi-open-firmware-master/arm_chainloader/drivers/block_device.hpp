@@ -36,8 +36,8 @@ struct BlockDevice {
   }
 
 	template <typename T>
-	inline bool write_block(uint32_t sector, T* src_buffer) {
-		return write_block(sector, reinterpret_cast<const uint32_t*>(src_buffer));
+	inline bool write_block(uint32_t sector, T* src_buffer, uint32_t count) {
+		return write_block(sector, reinterpret_cast<const uint32_t*>(src_buffer), count);
 	}
 
   inline unsigned int get_block_size() {
@@ -46,7 +46,7 @@ struct BlockDevice {
 
   virtual bool read_block(uint32_t sector, uint32_t* buf, uint32_t count) = 0;
 
-	virtual bool write_block(uint32_t sector, const uint32_t* buf) = 0;
+	virtual bool write_block(uint32_t sector, const uint32_t* buf, uint32_t count) = 0;
 
   /* called to stop the block device */
   virtual void stop() {}

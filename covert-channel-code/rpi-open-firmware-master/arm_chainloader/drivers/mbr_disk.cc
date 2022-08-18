@@ -102,8 +102,8 @@ struct MbrImpl {
   }
 
 	template <typename T>
-	inline bool write_block(uint8_t volume, uint32_t sector, T* src_buffer) {
-		return write_block(volume, sector, reinterpret_cast<const uint32_t*>(src_buffer));
+	inline bool write_block(uint8_t volume, uint32_t sector, T* src_buffer, uint32_t count) {
+		return write_block(volume, sector, reinterpret_cast<const uint32_t*>(src_buffer), count);
 	}
 
   inline unsigned int get_block_size() {
@@ -128,7 +128,7 @@ struct MbrImpl {
 		return mmc->read_block(p.part_start + sector, buf, count);
 	}
 
-	bool write_block(uint8_t volume, uint32_t sector, const uint32_t* buf) {
+	bool write_block(uint8_t volume, uint32_t sector, const uint32_t* buf, uint32_t count) {
 		if (volume > 3)
 			return false;
 
@@ -137,7 +137,7 @@ struct MbrImpl {
 		if (p.part_typ == 0)
 			return false;
 
-		return mmc->write_block(p.part_start + sector, buf);
+		return mmc->write_block(p.part_start + sector, buf, count);
 	}
 
   void read_mbr() {
@@ -238,7 +238,7 @@ DRESULT disk_write (BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count) {
   bool success = true;
   //uint32_t start = ST_CLO;
 
-  success = g_MbrDisk->write_block(pdrv, sector, buff);
+  success = g_MbrDisk->write_block(pdrv, sector, buff, count);
   if (!success) {
     printf("error writing part#%d %ld+%d sectors from 0x%lx\n", pdrv, sector, count, (uint32_t)buff);
     hexdump_ram(buff, sector*512, 512*count);
