@@ -23,6 +23,7 @@ SDHOST driver. This used to be known as ALTMMC.
 
 #include "sd_proto.hpp"
 #include "block_device.hpp"
+#include "sdhost.hpp"
 
 #include <stdio.h>
 
@@ -345,25 +346,6 @@ struct BCM2708SDHost : BlockDevice {
     return true;
   }
 
-//#define DUMP_WRITE
-
-	bool wait_for_fifo_write_access(uint32_t timeout = 100000) {
-		// TODO: How to do this?
-		/*uint32_t t = timeout;
-
-		while ((SH_HSTS & SH_HSTS_DATA_FLAG_SET) == 0) {
-			if (t == 0) {
-				putchar('\n');
-				logf("ERROR: no FIFO data, timed out after %ldus!\n", timeout)
-				return false;
-			}
-			t--;
-			udelay(10);
-		}*/
-
-		return true;
-	}
-
   void drain_fifo() {
     /* fuck me with a rake ... gently */
 
@@ -483,53 +465,6 @@ printf("\n");
 #endif
           return true;
   }
-
-	/*virtual bool write_block(uint32_t sector, const uint32_t* buf) override {
-    uint32_t hsts = 0;
-    int copy_words = block_size / sizeof(uint32_t);
-    printf("writing to sector %ld\n", sector);
-
-    int burst_words, words;
-    uint32_t edm;
-    send_raw(MMC_WRITE_BLOCK_SINGLE | SH_CMD_WRITE_CMD_SET, sector);
-    wait();
-    while (copy_words) {
-
-      burst_words = min(SDDATA_FIFO_PIO_BURST, copy_words);
-      edm = SH_EDM;
-      words = SDDATA_FIFO_WORDS - edm_fifo_fill(edm);
-
-      if (words < burst_words) {
-        int fsm_state = (edm & SDEDM_FSM_MASK);
-
-        if (fsm_state != SDEDM_FSM_WRITEDATA &&
-            fsm_state != SDEDM_FSM_WRITEWAIT1 &&
-            fsm_state != SDEDM_FSM_WRITEWAIT2 &&
-            fsm_state != SDEDM_FSM_WRITECRC &&
-            fsm_state != SDEDM_FSM_WRITESTART1 &&
-            fsm_state != SDEDM_FSM_WRITESTART2) {
-          hsts = SH_HSTS;
-          printf("fsm %x, hsts %08x\n", fsm_state, hsts);
-          if (hsts & SDHSTS_ERROR_MASK)
-            break;
-        }
-
-        continue;
-      } else if (words > copy_words) {
-        words = copy_words;
-      }
-
-      copy_words -= words;
-
-      while (words) {
-        SH_DATA = *(buf++);
-        words--;
-      }
-    }
-    send_raw(MMC_STOP_TRANSMISSION | SH_CMD_BUSY_CMD_SET);
-
-    return true;
-  }*/
 
   bool select_card() {
     send(MMC_SELECT_CARD, MMC_ARG_RCA(rca));
@@ -728,580 +663,755 @@ printf("\n");
     logf("eMMC driver sucessfully started!\n");
   }
 
-  /* WRITE STUFF */
+  // WRITE STUFF
 
+  // Adapted from https://github.com/ARM-software/u-boot/blob/master/drivers/mmc/bcm2835_sdhost.c
+  // and https://github.com/zeoneo/rpi-3b-wifi/blob/master/src/sdhost.c
 
-// Adapted from https://github.com/ARM-software/u-boot/blob/master/drivers/mmc/bcm2835_sdhost.c
-// and https://github.com/zeoneo/rpi-3b-wifi/blob/master/src/sdhost.c
+  #define DEBUG_INFO 0
+  #if DEBUG_INFO == 1
+  #define LOG_DEBUG(...) printf(__VA_ARGS__)
+  #else
+  #define LOG_DEBUG(...)
+  #endif
 
-// Quick hack to make min work here
-#define min(a, b) (((a) < (b)) ? (a) : (b))
-#define SDDATA_FIFO_PIO_BURST	8
-#define SDDATA_FIFO_WORDS	    16
+  #define min(x, y) ({ x < y ? x : y; })
 
-#define SDEDM_FIFO_FILL_SHIFT	4
-#define SDEDM_FIFO_FILL_MASK	0x1f
-static uint32_t edm_fifo_fill(uint32_t edm) {
-  return (edm >> SDEDM_FIFO_FILL_SHIFT) & SDEDM_FIFO_FILL_MASK;
-}
-#define LOG_DEBUG           //printf
-#define MicroDelay          udelay
-#define BIT(nr)		(1 << (nr))
-#define MMC_DATA_READ		1
-#define MMC_DATA_WRITE		2
-#define MMC_RSP_PRESENT (1 << 0)
-#define MMC_RSP_136	(1 << 1)		/* 136 bit response */
-#define MMC_RSP_CRC	(1 << 2)		/* expect valid crc */
-#define MMC_RSP_BUSY	(1 << 3)		/* card may send busy */
-#define MMC_RSP_OPCODE	(1 << 4)		/* response contains opcode */
-#define SDHST_TIMEOUT_MAX_USEC 1000
-#define MMC_CMD_GO_IDLE_STATE		0
-#define MMC_CMD_SEND_OP_COND		1
-#define MMC_CMD_ALL_SEND_CID		2
-#define MMC_CMD_SET_RELATIVE_ADDR	3
-#define MMC_CMD_SET_DSR			4
-#define MMC_CMD_SWITCH			6
-#define MMC_CMD_SELECT_CARD		7
-#define MMC_CMD_SEND_EXT_CSD		8
-#define MMC_CMD_SEND_CSD		9
-#define MMC_CMD_SEND_CID		10
-#define MMC_CMD_STOP_TRANSMISSION	12
-#define MMC_CMD_SEND_STATUS		13
-#define MMC_CMD_SET_BLOCKLEN		16
-#define MMC_CMD_READ_SINGLE_BLOCK	17
-#define MMC_CMD_READ_MULTIPLE_BLOCK	18
-#define MMC_CMD_SEND_TUNING_BLOCK		19
-#define MMC_CMD_SEND_TUNING_BLOCK_HS200	21
-#define MMC_CMD_SET_BLOCK_COUNT         23
-#define MMC_CMD_WRITE_SINGLE_BLOCK	24
-#define MMC_CMD_WRITE_MULTIPLE_BLOCK	25
-#define MMC_CMD_ERASE_GROUP_START	35
-#define MMC_CMD_ERASE_GROUP_END		36
-#define MMC_CMD_ERASE			38
-#define MMC_CMD_APP_CMD			55
-#define MMC_CMD_SPI_READ_OCR		58
-#define MMC_CMD_SPI_CRC_ON_OFF		59
-#define MMC_CMD_RES_MAN			62
-#define MMC_STATUS_RDY_FOR_DATA (1 << 8)
-#define MMC_STATUS_CURR_STATE	(0xf << 9)
-#define MMC_STATUS_MASK		(~0x0206BF7F)
-#define MMC_STATE_PRG		(7 << 9)
-#define MMC_RSP_R1	(MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE)
-#define MMC_RSP_R1b	(MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE| \
-			MMC_RSP_BUSY)
-#define SDEDM_FORCE_DATA_MODE BIT(19)
-#define NULL                0
-#define SDCMD_CMD_MASK      0x3f
+  #define msleep(a) MicroDelay(a * 1000)
 
-struct mmc_cmd {
-	unsigned short cmdidx;
-	unsigned int resp_type;
-	unsigned int cmdarg;
-	unsigned int response[4];
-};
+  #define SDCMD (0x00 >> 2)  /* Command to SD card              - 16 R/W */
+  #define SDARG (0x04 >> 2)  /* Argument to SD card             - 32 R/W */
+  #define SDTOUT (0x08 >> 2) /* Start value for timeout counter - 32 R/W */
+  #define SDCDIV (0x0c >> 2) /* Start value for clock divider   - 11 R/W */
+  #define SDRSP0 (0x10 >> 2) /* SD card response (31:0)         - 32 R   */
+  #define SDRSP1 (0x14 >> 2) /* SD card response (63:32)        - 32 R   */
+  #define SDRSP2 (0x18 >> 2) /* SD card response (95:64)        - 32 R   */
+  #define SDRSP3 (0x1c >> 2) /* SD card response (127:96)       - 32 R   */
+  #define SDHSTS (0x20 >> 2) /* SD host status                  - 11 R/W */
+  #define SDVDD (0x30 >> 2)  /* SD card power control           -  1 R/W */
+  #define SDEDM (0x34 >> 2)  /* Emergency Debug Mode            - 13 R/W */
+  #define SDHCFG (0x38 >> 2) /* Host configuration              -  2 R/W */
+  #define SDHBCT (0x3c >> 2) /* Host byte count (debug)         - 32 R/W */
+  #define SDDATA (0x40 >> 2) /* Data to/from SD card            - 32 R/W */
+  #define SDHBLC (0x50 >> 2) /* Host block count (SDIO/SDHC)    -  9 R/W */
 
-struct mmc_data {
-	union {
-		char *dest;
-		const char *src; /* src buffers don't get written to */
-	};
-	unsigned int flags;
-	unsigned int blocks;
-	unsigned int blocksize;
-};
+  #define HC_CMD_ENABLE 0x8000
+  #define SDCMD_FAIL_FLAG 0x4000
+  #define SDCMD_BUSYWAIT 0x800
+  #define SDCMD_NO_RESPONSE 0x400
+  #define SDCMD_LONG_RESPONSE 0x200
+  #define SDCMD_WRITE_CMD 0x80
+  #define SDCMD_READ_CMD 0x40
+  #define SDCMD_CMD_MASK 0x3f
 
-struct __attribute__((__packed__, aligned(4))) sdhost_state {
-    uint32_t blocks;
-    uint8_t use_busy;
-    struct mmc_cmd* cmd;
-    struct mmc_data* data;
-};
+  #define SDCDIV_MAX_CDIV 0x7ff
 
-  static inline int is_power_of_2(uint64_t x) {
-      return !(x & (x - 1));
+  #define SDHSTS_BUSY_IRPT 0x400
+  #define SDHSTS_BLOCK_IRPT 0x200
+  #define SDHSTS_SDIO_IRPT 0x100
+  #define SDHSTS_REW_TIME_OUT 0x80
+  #define SDHSTS_CMD_TIME_OUT 0x40
+  #define SDHSTS_CRC16_ERROR 0x20
+  #define SDHSTS_CRC7_ERROR 0x10
+  #define SDHSTS_FIFO_ERROR 0x08
+  #define SDHSTS_DATA_FLAG 0x01
+
+  #define SDHSTS_CLEAR_MASK                                                      \
+    (SDHSTS_BUSY_IRPT | SDHSTS_BLOCK_IRPT | SDHSTS_SDIO_IRPT |                   \
+    SDHSTS_REW_TIME_OUT | SDHSTS_CMD_TIME_OUT | SDHSTS_CRC16_ERROR |            \
+    SDHSTS_CRC7_ERROR | SDHSTS_FIFO_ERROR)
+
+  #define SDHSTS_TRANSFER_ERROR_MASK                                             \
+    (SDHSTS_CRC7_ERROR | SDHSTS_CRC16_ERROR | SDHSTS_REW_TIME_OUT |              \
+    SDHSTS_FIFO_ERROR)
+
+  #define SDHSTS_ERROR_MASK (SDHSTS_CMD_TIME_OUT | SDHSTS_TRANSFER_ERROR_MASK)
+
+  #define SDHCFG_BUSY_IRPT_EN BIT(10)
+  #define SDHCFG_BLOCK_IRPT_EN BIT(8)
+  #define SDHCFG_SDIO_IRPT_EN BIT(5)
+  #define SDHCFG_DATA_IRPT_EN BIT(4)
+  #define SDHCFG_SLOW_CARD BIT(3)
+  #define SDHCFG_WIDE_EXT_BUS BIT(2)
+  #define SDHCFG_WIDE_INT_BUS BIT(1)
+  #define SDHCFG_REL_CMD_LINE BIT(0)
+
+  #define SDVDD_POWER_OFF 0
+  #define SDVDD_POWER_ON 1
+
+  #define SDEDM_FORCE_DATA_MODE BIT(19)
+  #define SDEDM_CLOCK_PULSE BIT(20)
+  #define SDEDM_BYPASS BIT(21)
+
+  #define SDEDM_FIFO_FILL_SHIFT 4
+  #define SDEDM_FIFO_FILL_MASK 0x1f
+  uint32_t edm_fifo_fill(uint32_t edm) {
+    return (edm >> SDEDM_FIFO_FILL_SHIFT) & SDEDM_FIFO_FILL_MASK;
   }
 
-static int bcm2835_read_wait_sdcmd() {
-    int timeout = 1000;
-    while ((SH_CMD & SH_CMD_NEW_FLAG_SET) && --timeout > 0) {
-        MicroDelay(SDHST_TIMEOUT_MAX_USEC);
+  #define SDEDM_WRITE_THRESHOLD_SHIFT 9
+  #define SDEDM_READ_THRESHOLD_SHIFT 14
+  #define SDEDM_THRESHOLD_MASK 0x1f
+
+  #define SDEDM_FSM_MASK 0xf
+  #define SDEDM_FSM_IDENTMODE 0x0
+  #define SDEDM_FSM_DATAMODE 0x1
+  #define SDEDM_FSM_READDATA 0x2
+  #define SDEDM_FSM_WRITEDATA 0x3
+  #define SDEDM_FSM_READWAIT 0x4
+  #define SDEDM_FSM_READCRC 0x5
+  #define SDEDM_FSM_WRITECRC 0x6
+  #define SDEDM_FSM_WRITEWAIT1 0x7
+  #define SDEDM_FSM_POWERDOWN 0x8
+  #define SDEDM_FSM_POWERUP 0x9
+  #define SDEDM_FSM_WRITESTART1 0xa
+  #define SDEDM_FSM_WRITESTART2 0xb
+  #define SDEDM_FSM_GENPULSES 0xc
+  #define SDEDM_FSM_WRITEWAIT2 0xd
+  #define SDEDM_FSM_STARTPOWDOWN 0xf
+
+  #define SDDATA_FIFO_WORDS 16
+
+  #define FIFO_READ_THRESHOLD 4
+  #define FIFO_WRITE_THRESHOLD 4
+  #define SDDATA_FIFO_PIO_BURST 8
+
+  #define SDHST_TIMEOUT_MAX_USEC 1000
+  #define PERIPHERAL_BASE 0x7E000000UL
+  #define SDHOSTREGS (PERIPHERAL_BASE + 0x202000)
+
+  struct sdhost_state host_state = {0};
+
+  #define USED(x)                                                                \
+    if (x)                                                                       \
+      ;                                                                          \
+    else {                                                                       \
     }
 
-    // Timeout counter is either zero or -1
-    if (timeout <= 0) {
-        LOG_DEBUG("%s: timeout (%d us)\n", __func__, SDHST_TIMEOUT_MAX_USEC);
-    }
-    return SH_CMD;
-}
+  void bcm2835_dumpregs() {
+    LOG_DEBUG("=========== REGISTER DUMP ===========\n");
+    LOG_DEBUG("SDCMD  0x%08x\n", SH_CMD);
+    LOG_DEBUG("SDARG  0x%08x\n", SH_ARG);
+    LOG_DEBUG("SDTOUT 0x%08x\n", SH_TOUT);
+    LOG_DEBUG("SDCDIV 0x%08x\n", SH_CDIV);
+    LOG_DEBUG("SDRSP0 0x%08x\n", SH_RSP0);
+    LOG_DEBUG("SDRSP1 0x%08x\n", SH_RSP1);
+    LOG_DEBUG("SDRSP2 0x%08x\n", SH_RSP2);
+    LOG_DEBUG("SDRSP3 0x%08x\n", SH_RSP3);
+    LOG_DEBUG("SDHSTS 0x%08x\n", SH_HSTS);
+    LOG_DEBUG("SDVDD  0x%08x\n", SH_VDD);
+    LOG_DEBUG("SDEDM  0x%08x\n", SH_EDM);
+    LOG_DEBUG("SDHCFG 0x%08x\n", SH_HCFG);
+    LOG_DEBUG("SDHBCT 0x%08x\n", SH_HBCT);
+    LOG_DEBUG("SDHBLC 0x%08x\n", SH_HBLC);
+    LOG_DEBUG("============================\n");
+  }
 
-static void bcm2835_prepare_data(struct sdhost_state* host, struct mmc_data* data) {
-    // LOG_DEBUG("preparing data \n ");
+  void sdhost_interrupt_clearer() {
+    LOG_DEBUG("Interrupt clearer called");
+  }
+
+  void sdhost_interrupt_handler() {
+    uint32_t i = SH_HSTS;
+    SH_HSTS = i;
+    if (i & SDHCFG_BUSY_IRPT_EN) {
+      LOG_DEBUG("Interrupt Done");
+    }
+    LOG_DEBUG("Interrupt hnadler called.");
+  }
+
+  int bcm2835_wait_transfer_complete() {
+    int timediff = 0;
+
+    while (1) {
+      uint32_t edm, fsm;
+
+      edm = SH_EDM;
+      fsm = edm & SDEDM_FSM_MASK;
+
+      if ((fsm == SDEDM_FSM_IDENTMODE) || (fsm == SDEDM_FSM_DATAMODE))
+        break;
+
+      if ((fsm == SDEDM_FSM_READWAIT) || (fsm == SDEDM_FSM_WRITESTART1) ||
+          (fsm == SDEDM_FSM_READDATA)) {
+        SH_EDM = edm | SDEDM_FORCE_DATA_MODE;
+        break;
+      }
+
+      /* Error out after 100000 register reads (~1s) */
+      if (timediff++ == 2000000000) {
+        LOG_DEBUG("wait_transfer_complete - still waiting after %d retries\n",
+                  timediff);
+        // bcm2835_dumpregs();
+        return -1;
+      }
+    }
+
+    return 0;
+  }
+
+  int bcm2835_transfer_block_pio(struct sdhost_state *host, bool is_read) {
+    struct mmc_data *data = host->data;
+    size_t blksize = data->blocksize;
+    int copy_words;
+    uint32_t hsts = 0;
+    uint32_t *buf;
+
+    if (blksize % sizeof(uint32_t)) {
+      LOG_DEBUG("Size error \n");
+      return -1;
+    }
+
+    buf = is_read ? (uint32_t *)data->dest : (uint32_t *)data->src;
+
+    if (is_read) {
+      data->dest += blksize;
+    } else {
+      data->src += blksize;
+    }
+
+    copy_words = blksize / sizeof(uint32_t);
+
+    /*
+    * Copy all contents from/to the FIFO as far as it reaches,
+    * then wait for it to fill/empty again and rewind.
+    */
+    while (copy_words) {
+      int burst_words, words;
+      uint32_t edm;
+
+      burst_words = min(SDDATA_FIFO_PIO_BURST, copy_words);
+      edm = SH_EDM;
+      if (is_read) {
+        words = edm_fifo_fill(edm);
+      } else {
+        words = SDDATA_FIFO_WORDS - edm_fifo_fill(edm);
+      }
+
+      if (words < burst_words) {
+        int fsm_state = (edm & SDEDM_FSM_MASK);
+
+        if ((is_read && (fsm_state != SDEDM_FSM_READDATA &&
+                        fsm_state != SDEDM_FSM_READWAIT &&
+                        fsm_state != SDEDM_FSM_READCRC)) ||
+            (!is_read && (fsm_state != SDEDM_FSM_WRITEDATA &&
+                          fsm_state != SDEDM_FSM_WRITEWAIT1 &&
+                          fsm_state != SDEDM_FSM_WRITEWAIT2 &&
+                          fsm_state != SDEDM_FSM_WRITECRC &&
+                          fsm_state != SDEDM_FSM_WRITESTART1 &&
+                          fsm_state != SDEDM_FSM_WRITESTART2))) {
+
+          hsts = SH_HSTS;
+          LOG_DEBUG("fsm %x, hsts %08x\n", fsm_state, hsts);
+          if (hsts & SDHSTS_ERROR_MASK) {
+            break;
+          }
+        }
+        continue;
+      } else if (words > copy_words) {
+        words = copy_words;
+      }
+      copy_words -= words;
+
+      /* Copy current chunk to/from the FIFO */
+      while (words) {
+        if (is_read)
+          *(buf++) = SH_DATA;
+        else
+          SH_DATA = *(buf++);
+        words--;
+      }
+    }
+
+    return 0;
+  }
+
+  int bcm2835_transfer_pio(struct sdhost_state *host) {
+    uint32_t sdhsts;
+    bool is_read;
+    int ret = 0;
+
+    is_read = (host->data->flags & MMC_DATA_READ) != 0;
+    ret = bcm2835_transfer_block_pio(host, is_read);
+    if (ret)
+      return ret;
+
+    sdhsts = SH_HSTS;
+    if (sdhsts & (SDHSTS_CRC16_ERROR | SDHSTS_CRC7_ERROR | SDHSTS_FIFO_ERROR)) {
+      LOG_DEBUG("%s transfer error - HSTS %08x\n", is_read ? "read" : "write",
+                sdhsts);
+      ret = -1;
+    } else if ((sdhsts & (SDHSTS_CMD_TIME_OUT | SDHSTS_REW_TIME_OUT))) {
+      LOG_DEBUG("%s timeout error - HSTS %08x\n", is_read ? "read" : "write",
+                sdhsts);
+      ret = -2;
+    }
+
+    return ret;
+  }
+
+  void bcm2835_prepare_data(struct sdhost_state *host,
+                                  struct mmc_data *data) {
+    // LOG_DEBUG("preparing data \n");
 
     host->data = data;
     if (!data)
-        return;
+      return;
 
     /* Use PIO */
     host->blocks = data->blocks;
 
     SH_HBCT = data->blocksize;
     SH_HBLC = data->blocks;
-}
-
-  static int bcm2835_send_command(struct sdhost_state* host, struct mmc_cmd* cmd, struct mmc_data* data) {
-      uint32_t sdcmd, sdhsts;
-
-      // LOG_DEBUG("Command Index %d \n", cmd->cmdidx);
-
-      if ((cmd->resp_type & MMC_RSP_136) && (cmd->resp_type & MMC_RSP_BUSY)) {
-          LOG_DEBUG("unsupported response type!\n");
-          return -1;
-      }
-
-      sdcmd = bcm2835_read_wait_sdcmd();
-      if (sdcmd & SH_CMD_NEW_FLAG_SET) {
-          LOG_DEBUG("previous command never completed.\n");
-          //bcm2835_dumpregs();
-          return -2;
-      }
-
-      host->cmd = cmd;
-      // LOG_DEBUG("Host cmd: %x host->cmd->resp_type:%d %d\n", host->cmd, host->cmd->resp_type, cmd->resp_type);
-
-      /* Clear any error flags */
-      sdhsts = SH_HSTS;
-      // bcm2835_dumpregs();
-      if (sdhsts & SDHSTS_ERROR_MASK) {
-        SH_HSTS = sdhsts;
-      }
-
-      SH_ARG = 0;
-      MicroDelay(1000);
-      bcm2835_prepare_data(host, data);
-      // LOG_DEBUG("Starting command execution arg: %x \n", cmd->cmdarg);
-      SH_ARG = cmd->cmdarg;
-
-      sdcmd = cmd->cmdidx & SDCMD_CMD_MASK;
-      // LOG_DEBUG("Starting command execution sdcmd: %x \n", sdcmd);
-
-      host->use_busy = 0;
-      if (!(cmd->resp_type & MMC_RSP_PRESENT)) {
-          sdcmd |= SH_CMD_NO_RESPONSE_SET;
-      } else {
-          if (cmd->resp_type & MMC_RSP_136)
-              sdcmd |= SH_CMD_LONG_RESPONSE_SET;
-          if (cmd->resp_type & MMC_RSP_BUSY) {
-              sdcmd |= SH_CMD_BUSY_CMD_SET;
-              host->use_busy = 1;
-          }
-      }
-
-      if (data) {
-          if (data->flags & MMC_DATA_WRITE)
-              sdcmd |= SH_CMD_WRITE_CMD_SET;
-          if (data->flags & MMC_DATA_READ)
-              sdcmd |= SH_CMD_READ_CMD_SET;
-      }
-
-      SH_CMD = sdcmd | SH_CMD_NEW_FLAG_SET;
-      // LOG_DEBUG("Ending command execution sdcmd: %x \n", sdcmd);
-      return 0;
   }
 
-static int bcm2835_finish_command(struct sdhost_state* host) {
-    struct mmc_cmd* cmd = host->cmd;
+  int bcm2835_read_wait_sdcmd() {
+    int timeout = 1000;
+    while ((SH_CMD & HC_CMD_ENABLE) && --timeout > 0) {
+      MicroDelay(SDHST_TIMEOUT_MAX_USEC);
+    }
+
+    // Timeout counter is either zero or -1
+    if (timeout <= 0) {
+      LOG_DEBUG("%s: timeout (%d us)\n", __func__, SDHST_TIMEOUT_MAX_USEC);
+    }
+    return SH_CMD;
+  }
+
+  int bcm2835_send_command(struct sdhost_state *host, struct mmc_cmd *cmd,
+                                  struct mmc_data *data) {
+    uint32_t sdcmd, sdhsts;
+
+    // LOG_DEBUG("Command Index %d \n", cmd->cmdidx);
+
+    if ((cmd->resp_type & MMC_RSP_136) && (cmd->resp_type & MMC_RSP_BUSY)) {
+      LOG_DEBUG("unsupported response type!\n");
+      return -1;
+    }
+
+    sdcmd = bcm2835_read_wait_sdcmd();
+    if (sdcmd & HC_CMD_ENABLE) {
+      LOG_DEBUG("previous command never completed.\n");
+      bcm2835_dumpregs();
+      return -2;
+    }
+
+    host->cmd = cmd;
+    // LOG_DEBUG("Host cmd: %x host->cmd->resp_type:%d %d\n", host->cmd,
+    // host->cmd->resp_type, cmd->resp_type);
+
+    /* Clear any error flags */
+    sdhsts = SH_HSTS;
+    // bcm2835_dumpregs();
+    if (sdhsts & SDHSTS_ERROR_MASK) {
+      SH_HSTS = sdhsts;
+    }
+
+    SH_ARG = 0;
+    MicroDelay(1000);
+    bcm2835_prepare_data(host, data);
+    // LOG_DEBUG("Starting command execution arg: %x \n", cmd->cmdarg);
+    SH_ARG = cmd->cmdarg;
+
+    sdcmd = cmd->cmdidx & SDCMD_CMD_MASK;
+    // LOG_DEBUG("Starting command execution sdcmd: %x \n", sdcmd);
+
+    host->use_busy = 0;
+    if (!(cmd->resp_type & MMC_RSP_PRESENT)) {
+      sdcmd |= SDCMD_NO_RESPONSE;
+    } else {
+      if (cmd->resp_type & MMC_RSP_136)
+        sdcmd |= SDCMD_LONG_RESPONSE;
+      if (cmd->resp_type & MMC_RSP_BUSY) {
+        sdcmd |= SDCMD_BUSYWAIT;
+        host->use_busy = 1;
+      }
+    }
+
+    if (data) {
+      if (data->flags & MMC_DATA_WRITE)
+        sdcmd |= SDCMD_WRITE_CMD;
+      if (data->flags & MMC_DATA_READ)
+        sdcmd |= SDCMD_READ_CMD;
+    }
+
+    SH_CMD = sdcmd | HC_CMD_ENABLE;
+    // LOG_DEBUG("Ebnding command execution sdcmd: %x \n", sdcmd);
+    return 0;
+  }
+
+  int bcm2835_finish_command(struct sdhost_state *host) {
+    struct mmc_cmd *cmd = host->cmd;
     uint32_t sdcmd;
     int ret = 0;
 
     sdcmd = bcm2835_read_wait_sdcmd();
 
     /* Check for errors */
-    if (sdcmd & SH_CMD_NEW_FLAG_SET) {
-        LOG_DEBUG("command never completed. sdcmd: %x SH_CMD_NEW_FLAG_SET: %x\n", sdcmd, SH_CMD_NEW_FLAG_SET);
-        //bcm2835_dumpregs();
+    if (sdcmd & HC_CMD_ENABLE) {
+      LOG_DEBUG("command never completed. sdcmd: %x HC_CMD_ENABLE: %x\n", sdcmd,
+                HC_CMD_ENABLE);
+      bcm2835_dumpregs();
+      return -1;
+    } else if (sdcmd & SDCMD_FAIL_FLAG) {
+
+      uint32_t sdhsts = SH_HSTS;
+      if (sdhsts & SDHSTS_ERROR_MASK) {
+        LOG_DEBUG("command Failed Check Error. sdcmd: %x status: %x\n", sdcmd,
+                  sdhsts);
         return -1;
-    } else if (sdcmd & SH_CMD_FAIL_FLAG_SET) {
+      }
+      LOG_DEBUG("command Failed Unknown Error. sdcmd: %x status: %x\n", sdcmd,
+                sdhsts);
+      return -1;
 
-        uint32_t sdhsts = SH_HSTS;
-        if (sdhsts & SDHSTS_ERROR_MASK) {
-            LOG_DEBUG("command Failed Check Error. sdcmd: %x status: %x\n", sdcmd, sdhsts);
-            return -1;
+      /* Clear the errors */
+      SH_HSTS = SDHSTS_ERROR_MASK;
+
+      if (!(sdhsts & SDHSTS_CRC7_ERROR) ||
+          (host->cmd->cmdidx != MMC_CMD_SEND_OP_COND)) {
+        if (sdhsts & SDHSTS_CMD_TIME_OUT) {
+          LOG_DEBUG("unexpected error cond1:%d cond2:%d \n",
+                    (!(sdhsts & SDHSTS_CRC7_ERROR)),
+                    (host->cmd->cmdidx != MMC_CMD_SEND_OP_COND));
+          bcm2835_dumpregs();
+          ret = -1;
+        } else {
+          LOG_DEBUG("unexpected command %d error\n", host->cmd->cmdidx);
+          cmd->response[0] = SH_RSP0;
+          cmd->response[1] = SH_RSP1;
+          cmd->response[2] = SH_RSP2;
+          cmd->response[3] = SH_RSP3;
+          bcm2835_dumpregs();
+          ret = -2;
         }
-        LOG_DEBUG("command Failed Unknown Error. sdcmd: %x status: %x\n", sdcmd, sdhsts);
-        return -1;
-
-        /* Clear the errors */
-        SH_HSTS = SDHSTS_ERROR_MASK;
-
-        if (!(sdhsts & SDHSTS_CRC7_ERROR) || (host->cmd->cmdidx != MMC_CMD_SEND_OP_COND)) {
-            if (sdhsts & SDHSTS_CMD_TIME_OUT) {
-                LOG_DEBUG("unexpected error cond1:%d cond2:%d \n", (!(sdhsts & SDHSTS_CRC7_ERROR)),
-                          (host->cmd->cmdidx != MMC_CMD_SEND_OP_COND));
-                //bcm2835_dumpregs(host);
-                ret = -1;
-            } else {
-                LOG_DEBUG("unexpected command %d error\n", host->cmd->cmdidx);
-                cmd->response[0] = SH_RSP0;
-                cmd->response[1] = SH_RSP1;
-                cmd->response[2] = SH_RSP2;
-                cmd->response[3] = SH_RSP3;
-                //bcm2835_dumpregs(host);
-                ret = -2;
-            }
-            return ret;
-        }
+        return ret;
+      }
     }
     // LOG_DEBUG("Is command %d AA\n", cmd->resp_type);
     if (cmd->resp_type & MMC_RSP_PRESENT) {
-        // LOG_DEBUG("Is command %d  BB\n", cmd->resp_type);
-        if (cmd->resp_type & MMC_RSP_136) {
-            cmd->response[0] = SH_RSP0;
-            cmd->response[1] = SH_RSP1;
-            cmd->response[2] = SH_RSP2;
-            cmd->response[3] = SH_RSP3;
-            // bcm2835_dumpregs();
-        } else {
-            cmd->response[0] = SH_RSP0;
-            // LOG_DEBUG("Is else command %d \n", cmd->resp_type);
-        }
+      // LOG_DEBUG("Is command %d  BB\n", cmd->resp_type);
+      if (cmd->resp_type & MMC_RSP_136) {
+        cmd->response[0] = SH_RSP0;
+        cmd->response[1] = SH_RSP1;
+        cmd->response[2] = SH_RSP2;
+        cmd->response[3] = SH_RSP3;
+        // bcm2835_dumpregs();
+      } else {
+        cmd->response[0] = SH_RSP0;
+        // LOG_DEBUG("Is else command %d \n", cmd->resp_type);
+      }
     }
     // bcm2835_dumpregs(host);
     /* Processed actual command. */
     host->cmd = NULL;
     // printf("Returning bcm2835_finish_command \n");
     return ret;
-}
+  }
 
-static int bcm2835_wait_transfer_complete() {
-    int timediff = 0;
-
-    while (1) {
-        uint32_t edm, fsm;
-
-        edm = SH_EDM;
-        fsm = edm & SDEDM_FSM_MASK;
-
-        if ((fsm == SDEDM_FSM_IDENTMODE) || (fsm == SDEDM_FSM_DATAMODE))
-            break;
-
-        if ((fsm == SDEDM_FSM_READWAIT) || (fsm == SDEDM_FSM_WRITESTART1) || (fsm == SDEDM_FSM_READDATA)) {
-            SH_EDM = edm | SDEDM_FORCE_DATA_MODE;
-            break;
-        }
-
-        /* Error out after 100000 register reads (~1s) */
-        if (timediff++ == 200000) {
-            LOG_DEBUG("wait_transfer_complete - still waiting after %d retries\n", timediff);
-            // bcm2835_dumpregs();
-            return -1;
-        }
-    }
-
-    return 0;
-}
-
-static int bcm2835_transfer_block_pio(struct sdhost_state* host, bool is_read) {
-    struct mmc_data* data = host->data;
-    size_t blksize        = data->blocksize;
-    int copy_words;
-    uint32_t hsts = 0;
-    uint32_t* buf;
-
-    if (blksize % sizeof(uint32_t)) {
-        LOG_DEBUG("Size error \n");
-        return -1;
-    }
-
-    buf = is_read ? (uint32_t*) data->dest : (uint32_t*) data->src;
-
-    if (is_read) {
-        data->dest += blksize;
-    } else {
-        data->src += blksize;
-    }
-
-    copy_words = blksize / sizeof(uint32_t);
-
-    /*
-     * Copy all contents from/to the FIFO as far as it reaches,
-     * then wait for it to fill/empty again and rewind.
-     */
-    while (copy_words) {
-        int burst_words, words;
-        uint32_t edm;
-
-        burst_words = min(SDDATA_FIFO_PIO_BURST, copy_words);
-        edm         = SH_EDM;
-        if (is_read) {
-            words = edm_fifo_fill(edm);
-        } else {
-            words = SDDATA_FIFO_WORDS - edm_fifo_fill(edm);
-        }
-
-        if (words < burst_words) {
-            int fsm_state = (edm & SDEDM_FSM_MASK);
-
-            if ((is_read && (fsm_state != SDEDM_FSM_READDATA && fsm_state != SDEDM_FSM_READWAIT &&
-                             fsm_state != SDEDM_FSM_READCRC)) ||
-                (!is_read && (fsm_state != SDEDM_FSM_WRITEDATA && fsm_state != SDEDM_FSM_WRITEWAIT1 &&
-                              fsm_state != SDEDM_FSM_WRITEWAIT2 && fsm_state != SDEDM_FSM_WRITECRC &&
-                              fsm_state != SDEDM_FSM_WRITESTART1 && fsm_state != SDEDM_FSM_WRITESTART2))) {
-
-                hsts = SH_HSTS;
-                LOG_DEBUG("fsm %x, hsts %08x\n", fsm_state, hsts);
-                if (hsts & SDHSTS_ERROR_MASK) {
-                    break;
-                }
-            }
-            continue;
-        } else if (words > copy_words) {
-            words = copy_words;
-        }
-        copy_words -= words;
-
-        /* Copy current chunk to/from the FIFO */
-        while (words) {
-            if (is_read)
-                *(buf++) = SH_DATA;
-            else
-                SH_DATA = *(buf++);
-            words--;
-        }
-    }
-
-    return 0;
-}
-
-static int bcm2835_transfer_pio(struct sdhost_state* host) {
-    uint32_t sdhsts;
-    bool is_read;
-    int ret = 0;
-
-    is_read = (host->data->flags & MMC_DATA_READ) != 0;
-    ret     = bcm2835_transfer_block_pio(host, is_read);
-    if (ret)
-        return ret;
-
-    sdhsts = SH_HSTS;
-    if (sdhsts & (SDHSTS_CRC16_ERROR | SDHSTS_CRC7_ERROR | SDHSTS_FIFO_ERROR)) {
-        LOG_DEBUG("%s transfer error - HSTS %08x\n", is_read ? "read" : "write", sdhsts);
-        ret = -1;
-    } else if ((sdhsts & (SDHSTS_CMD_TIME_OUT | SDHSTS_REW_TIME_OUT))) {
-        LOG_DEBUG("%s timeout error - HSTS %08x\n", is_read ? "read" : "write", sdhsts);
-        ret = -2;
-    }
-
-    return ret;
-}
-
-static int bcm2835_check_cmd_error(struct sdhost_state* host, uint32_t intmask) {
+  int bcm2835_check_cmd_error(struct sdhost_state *host,
+                                    uint32_t intmask) {
     int ret = -1;
 
     if (!(intmask & SDHSTS_ERROR_MASK))
-        return 0;
+      return 0;
 
     if (!host->cmd)
-        return -1;
+      return -1;
 
     LOG_DEBUG("sdhost_busy_irq: intmask %08x\n", intmask);
     if (intmask & SDHSTS_CRC7_ERROR) {
-        ret = -2;
+      ret = -2;
     } else if (intmask & (SDHSTS_CRC16_ERROR | SDHSTS_FIFO_ERROR)) {
-        ret = -2;
+      ret = -2;
     } else if (intmask & (SDHSTS_REW_TIME_OUT | SDHSTS_CMD_TIME_OUT)) {
-        ret = -3;
+      ret = -3;
     }
-    //bcm2835_dumpregs();
+    bcm2835_dumpregs();
     return ret;
-}
+  }
 
-static int bcm2835_check_data_error(struct sdhost_state* host, uint32_t intmask) {
+  int bcm2835_check_data_error(struct sdhost_state *host,
+                                      uint32_t intmask) {
     int ret = 0;
 
     if (!host->data)
-        return 0;
+      return 0;
     if (intmask & (SDHSTS_CRC16_ERROR | SDHSTS_FIFO_ERROR))
-        ret = -1;
+      ret = -1;
     if (intmask & SDHSTS_REW_TIME_OUT)
-        ret = -2;
+      ret = -2;
 
     if (ret)
-        LOG_DEBUG("%s:%d Mask: %lx Error: %d\n", __func__, __LINE__, intmask, ret);
+      LOG_DEBUG("%s:%d %d\n", __func__, __LINE__, ret);
 
     return ret;
-}
+  }
 
-static int bcm2835_transmit(struct sdhost_state* host) {
+  int bcm2835_transmit(struct sdhost_state *host) {
     uint32_t intmask = SH_HSTS;
     int ret;
-    LOG_DEBUG("Transmit, SH_HSTS: %x\n", intmask);
+
+    LOG_DEBUG("%s: blocks:%d cmd:%x data:%x\n", __func__, host->blocks, host->cmd, host->data);
 
     /* Check for errors */
     ret = bcm2835_check_data_error(host, intmask);
     if (ret) {
-        LOG_DEBUG("Data error\n");
-        return ret;
+      LOG_DEBUG("Data error");
+      return ret;
     }
 
     ret = bcm2835_check_cmd_error(host, intmask);
     if (ret) {
-        LOG_DEBUG("Cmd error\n");
-        return ret;
+      LOG_DEBUG("cmd error");
+      return ret;
     }
 
     /* Handle wait for busy end */
     if (host->use_busy && (intmask & SDHSTS_BUSY_IRPT)) {
-        SH_HSTS = SDHSTS_BUSY_IRPT;
-        host->use_busy = false;
-        bcm2835_finish_command(host);
+      SH_HSTS = SDHSTS_BUSY_IRPT;
+      host->use_busy = false;
+      bcm2835_finish_command(host);
     }
 
     /* Handle PIO data transfer */
     if (host->data) {
-        ret = bcm2835_transfer_pio(host);
+      ret = bcm2835_transfer_pio(host);
+      if (ret)
+        return ret;
+      host->blocks--;
+      if (host->blocks == 0) {
+        /* Wait for command to complete for real */
+        ret = bcm2835_wait_transfer_complete();
         if (ret)
-            return ret;
-        host->blocks--;
-        if (host->blocks == 0) {
-            /* Wait for command to complete for real */
-            ret = bcm2835_wait_transfer_complete();
-            if (ret)
-                return ret;
-            /* Transfer complete */
-            host->data = NULL;
-        }
+          return ret;
+        /* Transfer complete */
+        host->data = NULL;
+      }
     }
     LOG_DEBUG("Return %s \n", __func__);
     return 0;
-}
+  }
 
-int bcm2835_send_cmd(struct sdhost_state* host, struct mmc_cmd* cmd, struct mmc_data* data) {
+  static inline int is_power_of_2(uint64_t x) { return !(x & (x - 1)); }
+
+  int bcm2835_send_cmd(struct sdhost_state *host, struct mmc_cmd *cmd,
+                      struct mmc_data *data) {
     uint32_t edm, fsm;
     int ret = 0;
-    // LOG_DEBUG("received command : %d \n ", cmd->cmdidx);
+    LOG_DEBUG("received command: id:%d arg:%d \n", cmd->cmdidx, cmd->cmdarg);
+
+    if (data && !is_power_of_2(data->blocksize)) {
+      LOG_DEBUG("unsupported block size (%d bytes)\n", data->blocksize);
+
+      if (cmd)
+        return -1;
+    }
 
     edm = SH_EDM;
     fsm = edm & SDEDM_FSM_MASK;
 
     if ((fsm != SDEDM_FSM_IDENTMODE) && (fsm != SDEDM_FSM_DATAMODE) &&
-        (cmd->cmdidx != MMC_STOP_TRANSMISSION)) {
-        LOG_DEBUG("previous command (%d) not complete (EDM %08x)\n", SH_CMD & SDCMD_CMD_MASK, edm);
-        //bcm2835_dumpregs(host);
+        (cmd && cmd->cmdidx != MMC_CMD_STOP_TRANSMISSION)) {
+      LOG_DEBUG("previous command (%d) not complete (EDM %08x)\n",
+                SH_CMD & SDCMD_CMD_MASK, edm);
+      bcm2835_dumpregs();
 
-        if (cmd) {
-            LOG_DEBUG("Error command\n");
-            return -1;
-        }
-        return 0;
+      if (cmd) {
+        LOG_DEBUG("Error command \n");
+        return -1;
+      }
+      return 0;
     }
 
     // LOG_DEBUG("Previous command  %x \n", readl(SDCMD));
     if (cmd) {
-        ret = bcm2835_send_command(host, cmd, data);
-        if (!ret && !host->use_busy) {
-            ret = bcm2835_finish_command(host);
-        }
+      ret = bcm2835_send_command(host, cmd, data);
+      if (!ret && !host->use_busy) {
+        ret = bcm2835_finish_command(host);
+      }
     }
 
     /* Wait for completion of busy signal or data transfer */
     while (host->use_busy || host->data) {
-      if (host->data)
-        LOG_DEBUG("host->use_busy: %d host->data: %x|%d|%d|%x|%x\n", host->use_busy, host->data,
-            host->data->blocks, host->data->blocksize, host->data->src, host->data->flags);
-      else
-        LOG_DEBUG("host->use_busy: %d host->data: %x\n", host->use_busy, host->data);
-        ret = bcm2835_transmit(host);
-        if (ret) {
-            break;
-        }
+      LOG_DEBUG("host->use_busy : %d host->data: %x \n", host->use_busy,
+                host->data);
+      ret = bcm2835_transmit(host);
+      if (ret) {
+        break;
+      }
     }
     // LOG_DEBUG("Return from command: \n");
     return ret;
-}
+  }
 
-int mmc_send_status(struct sdhost_state *host, int timeout)
-{
-	struct mmc_cmd cmd;
-	int err, retries = 5;
+  struct sdhost_state host = {0};
 
-	cmd.cmdidx = MMC_CMD_SEND_STATUS;
-	cmd.resp_type = MMC_RSP_R1;
-	cmd.cmdarg = rca << 16;
+  inline int mmc_send_cmd(struct mmc_cmd *cmd, struct mmc_data *data)
+  {
+    return bcm2835_send_cmd(&host, cmd, data);
+  }
 
-	while (1) {
-		err = bcm2835_send_cmd(host, &cmd, NULL);
-		if (!err) {
-			if ((cmd.response[0] & MMC_STATUS_RDY_FOR_DATA) &&
-			    (cmd.response[0] & MMC_STATUS_CURR_STATE) !=
-			     MMC_STATE_PRG)
-				break;
+  int mmc_set_blocklen(int len)
+  {
+    struct mmc_cmd cmd;
+    int err;
 
-			if (cmd.response[0] & MMC_STATUS_MASK) {
-#if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
-				LOG_DEBUG("Status Error: 0x%08X\n",
-				       cmd.response[0]);
-#endif
-				return -1;
-			}
-		} else if (--retries < 0)
-			return err;
+    cmd.cmdidx = MMC_CMD_SET_BLOCKLEN;
+    cmd.resp_type = MMC_RSP_R1;
+    cmd.cmdarg = len;
 
-		if (timeout-- <= 0)
-			break;
+    err = mmc_send_cmd(&cmd, NULL);
 
-		udelay(1000);
-	}
+  #ifdef CONFIG_MMC_QUIRKS
+    if (err && (mmc->quirks & MMC_QUIRK_RETRY_SET_BLOCKLEN)) {
+      int retries = 4;
+      /*
+      * It has been seen that SET_BLOCKLEN may fail on the first
+      * attempt, let's try a few more time
+      */
+      do {
+        err = mmc_send_cmd(mmc, &cmd, NULL);
+        if (!err)
+          break;
+      } while (retries--);
+    }
+  #endif
 
-	if (timeout <= 0) {
-#if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
-		LOG_DEBUG("Timeout waiting card ready\n");
-#endif
-		return -2;
-	}
+    return err;
+  }
 
-	return 0;
-}
+  void mmc_trace_state(struct mmc_cmd *cmd)
+  {
+    int status = (cmd->response[0] & MMC_STATUS_CURR_STATE) >> 9;
+    LOG_DEBUG("CURR STATE:%d\n", status);
+  }
 
-void mmc_write_blocks(struct sdhost_state *host, uint32_t sector, uint32_t count, const uint32_t* buf) {
+  int mmc_send_status(int timeout)
+  {
+    struct mmc_cmd cmd;
+    int err, retries = 5;
+
+    cmd.cmdidx = MMC_CMD_SEND_STATUS;
+    cmd.resp_type = MMC_RSP_R1;
+    //if (!mmc_host_is_spi(mmc))
+    cmd.cmdarg = rca << 16;
+
+    while (1) {
+      err = mmc_send_cmd(&cmd, NULL);
+      if (!err) {
+        if ((cmd.response[0] & MMC_STATUS_RDY_FOR_DATA) &&
+            (cmd.response[0] & MMC_STATUS_CURR_STATE) !=
+            MMC_STATE_PRG)
+          break;
+
+        if (cmd.response[0] & MMC_STATUS_MASK) {
+  #if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
+          pr_err("Status Error: 0x%08X\n",
+                cmd.response[0]);
+  #endif
+          return -ECOMM;
+        }
+      } else if (--retries < 0)
+        return err;
+
+      if (timeout-- <= 0)
+        break;
+
+      udelay(1000);
+    }
+
+    mmc_trace_state(&cmd);
+    if (timeout <= 0) {
+  #if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
+      pr_err("Timeout waiting card ready\n");
+  #endif
+      return -ETIMEDOUT;
+    }
+
+    return 0;
+  }
+
+  ulong mmc_write_blocks(lbaint_t start, lbaint_t blkcnt, const uint8_t *src)
+  {
     struct mmc_cmd cmd;
     struct mmc_data data;
-    printf("mmc_write_blocks: sector:%d count:%d\n", sector, count);
-    cmd.cmdidx = count == 1 ? MMC_CMD_WRITE_SINGLE_BLOCK : MMC_CMD_WRITE_MULTIPLE_BLOCK;
+    int timeout = 1000;
+
+    /*if ((start + blkcnt) > mmc_get_blk_desc(mmc)->lba) {
+      printf("MMC: block number 0x" LBAF " exceeds max(0x" LBAF ")\n",
+            start + blkcnt, mmc_get_blk_desc(mmc)->lba);
+      return 0;
+    }*/
+
+    if (blkcnt == 0)
+      return 0;
+    else if (blkcnt == 1)
+      cmd.cmdidx = MMC_CMD_WRITE_SINGLE_BLOCK;
+    else
+      cmd.cmdidx = MMC_CMD_WRITE_MULTIPLE_BLOCK;
+
+    if (is_high_capacity)
+      cmd.cmdarg = start;
+    else
+      cmd.cmdarg = start * block_size;
+
     cmd.resp_type = MMC_RSP_R1;
-    cmd.cmdarg = sector * block_size;
-    data.src = reinterpret_cast<const char*>(buf);
-    data.flags = MMC_DATA_WRITE;
-    data.blocks = count;
+
+    data.src = src;
+    data.blocks = blkcnt;
     data.blocksize = block_size;
-    bcm2835_send_cmd(host, &cmd, &data);
-    if (count > 1) {
+    data.flags = MMC_DATA_WRITE;
+
+    if (mmc_send_cmd(&cmd, &data)) {
+      printf("mmc write failed\n");
+      return 0;
+    }
+
+    /* SPI multiblock writes terminate using a special
+    * token, not a STOP_TRANSMISSION request.
+    */
+    if (/*!mmc_host_is_spi(mmc) &&*/ blkcnt > 1) {
       cmd.cmdidx = MMC_CMD_STOP_TRANSMISSION;
-      cmd.resp_type = MMC_RSP_R1b;
       cmd.cmdarg = 0;
-      if (bcm2835_send_cmd(host, &cmd, NULL)) {
+      cmd.resp_type = MMC_RSP_R1; // TODO: According to u-boot, this should be MMC_RSP_R1b... But then we have an infinite loop???
+      if (mmc_send_cmd(&cmd, NULL)) {
         printf("mmc fail to send stop cmd\n");
-        return;
+        return 0;
       }
     }
 
-	  mmc_send_status(host, 1000);
-}
+    /* Waiting for the ready status */
+    if (mmc_send_status(timeout))
+      return 0;
 
-	virtual bool write_block(uint32_t sector, const uint32_t* buf, uint32_t count) override {
-    struct sdhost_state host;
-    host.blocks = 0;
-    host.cmd = 0;
-    host.data = 0;
-    host.use_busy = 0;
-    unsigned long cur, blocks_todo = count;
+    return blkcnt;
+  }
+
+  ulong mmc_bwrite(lbaint_t start, lbaint_t blkcnt, const uint8_t *src)
+  {
+    int dev_num = block_size;
+    lbaint_t cur, blocks_todo = blkcnt;
+
+    if (mmc_set_blocklen(block_size))
+      return 0;
+
     do {
       cur = blocks_todo;
-      mmc_write_blocks(&host, sector, cur, buf);
+      if (mmc_write_blocks(start, cur, src) != cur)
+        return 0;
       blocks_todo -= cur;
-      sector += cur;
-      buf += cur * block_size;
+      start += cur;
+      src += cur * block_size;
     } while (blocks_todo > 0);
-    return true;
+
+    return blkcnt;
+  }
+
+	virtual bool write_block(uint32_t sector, const uint32_t* buf, uint32_t count) override {
+    if (count <= 0) return false;
+    LOG_DEBUG("%s: sector:%d count:%d\n", __func__, sector, count);
+    return !!mmc_bwrite(sector, count, reinterpret_cast<const uint8_t*>(buf)); // Dirty cast to bool
 	}
 };
 

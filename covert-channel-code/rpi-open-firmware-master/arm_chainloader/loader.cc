@@ -104,17 +104,28 @@ struct LoaderImpl {
       logf("loaded puf params: %s\n", puf_params);
     }
 
-    uint8_t* teststr = new uint8_t[7*256*4];
-    long l = 0;
-    for (long i = 0; i < 4; i++) {
-          for (long j = 0; j < 256; j++) {
-                for (long k = 0; k < 7; k++) {
+    /* This seems to work flawlessly up to a certain point
+#define L1 17
+#define L2 256
+#define L3 17
+    uint8_t* teststr = new uint8_t[L1*L2*L3];
+    printf("init\n");
+    long i=0,j=0,k=0,l=0;
+    for (i = 0; i < L1; i++) {
+      if (!(i % 10)) printf("i%d\n", i);
+          for (j = 0; j < L2; j++) {
+      if (!(j % 10)) printf("j%d\n", j);
+                for (k = 0; k < L3; k++) {
+      if (!(k % 10)) printf("k%d %d\n", k, teststr[l]);
                   teststr[l++] = j;
                 }
           }
     }
-    write_file("h.txt", teststr, 7*256*4);
+    printf("filled\n");
+    write_file("h.txt", teststr, L1*L2*L3);
+    printf("written\n");
     delete[] teststr;
+    */
 
     /* load flat device tree */
     uint8_t* fdt;
