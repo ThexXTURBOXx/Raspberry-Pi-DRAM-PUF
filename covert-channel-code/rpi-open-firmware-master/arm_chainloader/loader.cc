@@ -42,7 +42,10 @@ FATFS g_BootVolumeFs;
 #define DTB_LOAD_ADDRESS       0xF000000 // 240 mb from start
 #define KERNEL_LOAD_ADDRESS    0x2000000 // 32 mb from start
 #define INITRD_LOAD_ADDRESS    0x4100000 // 64.x mb from start
-#define PUF_PARAM_LOAD_ADDRESS 0x4000000 // 64 mb from start
+#define PUF_START_SIGNAL       0x2800000U
+#define PUF_WRITTEN_SIGNAL     0x2800004U
+#define PUF_RESULT             0x2800008U
+#define PUF_PARAM_LOAD_ADDRESS 0x4000000U
 
 typedef void __attribute__((noreturn)) (*linux_t)(uint32_t, uint32_t, void*);
 
@@ -140,15 +143,17 @@ struct LoaderImpl {
     delete[] cmdline;
 
     /* the eMMC card in particular needs to be reset */
-    teardown_hardware();
-    mmu_off();
-    disable_icache();
+    if (!file_exists("puf_en")) {
+      teardown_hardware();
+      mmu_off();
+      disable_icache();
+    }
 
     run_linux(kernel, fdt);
   }
 
   inline void find_and_mount() {
-    logf("Mounting boot partitiion ...\n");
+    logf("Mounting boot partition ...\n");
     FRESULT r = f_mount(&g_BootVolumeFs, ROOT_VOLUME_PREFIX, 1);
     if (r != FR_OK) {
       panic("failed to mount boot partition, error: %d", (int)r);
@@ -187,8 +192,42 @@ struct LoaderImpl {
     logf("stalling until jtag attaches\n");
     debug_stall();
 #endif
-    logf("Jumping to the Linux kernel...\n");
-    kernel(0, ~0, fdt);
+
+    if (!file_exists("puf_en")) {
+      logf("Jumping to the Linux kernel...\n");
+      kernel(0, ~0, fdt);
+    } else {
+      // Start PUF param from SD mode
+
+      uint32_t curr_size = 0;
+      volatile uint32_t *start_signal = reinterpret_cast<volatile uint32_t*>(PUF_START_SIGNAL);
+      uint8_t *puf_result = reinterpret_cast<uint8_t*>(PUF_RESULT);
+      *start_signal = 0;
+
+      while (ARM_0_MAIL1_STA & ARM_MS_FULL);
+      ARM_0_MAIL1_WRT = 0x12345678;
+      delay_ms(50);
+      while (ARM_0_MAIL1_STA & ARM_MS_FULL);
+      ARM_0_MAIL1_WRT = 5;
+      delay_ms(50);
+      while (ARM_0_MAIL1_STA & ARM_MS_FULL);
+      ARM_0_MAIL1_WRT = 5;
+      delay_ms(50);
+
+      while (1) {
+        while (1) {
+          printf("%d %d ", *start_signal, *puf_result);
+          if (*start_signal) {
+            curr_size = *start_signal;
+            *start_signal = 0;
+            break;
+          }
+        }
+        printf("Received write signal for %d bytes\n", curr_size);
+        write_file("h.txt", puf_result, curr_size);
+        printf("Memory dump of %d bytes written\n", curr_size);
+      }
+    }
   }
 
   bool file_exists(const char* path) {

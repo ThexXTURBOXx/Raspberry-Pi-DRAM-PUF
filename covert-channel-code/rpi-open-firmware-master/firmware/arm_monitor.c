@@ -27,7 +27,10 @@ First stage monitor.
 #include "getpuf/GetPuf.c"
 
 #define logf(fmt, ...) printf("[SDRAM:%s]: " fmt, __FUNCTION__, ##__VA_ARGS__);
-#define PUF_PARAM_LOAD_ADDRESS 0x4000000 // 64mb from start
+#define PUF_START_SIGNAL       0x2800000U
+#define PUF_WRITTEN_SIGNAL     0x2800004U
+#define PUF_RESULT             0x2800008U
+#define PUF_PARAM_LOAD_ADDRESS 0x4000000U
 
 struct tagged_packet {
   uint32_t tag;
@@ -57,7 +60,7 @@ bool handle_property_tag(struct tagged_packet *packet) {
   return true;
 }
 
-unsigned int addmode, safemode, mode, funcloc, dcyfunc, nfreq;
+unsigned int addmode, mode, funcloc, dcyfunc, nfreq;
 unsigned int stradd, endadd, initvalue, decaytime, max_measures;
 
 int getmode(uint32_t msg)
@@ -73,7 +76,9 @@ int getmode(uint32_t msg)
 				 break;
 		case  3: printf("\nExtract PUF at Intervals\n\n");
 				 break;
-		default: printf("\nTest DRAM PUF\n\n");
+		case  5: printf("\nTest Params from SD Card\n\n");
+				 break;
+		default: printf("\nUnknown value\n\n");
 				 break;
 	}
 
@@ -87,15 +92,6 @@ void get_address_mode(uint32_t msg)
 		printf("\nAddress Mode = BRC\n\n");
 	else
 		printf("\nAddress Mode = RBC\n\n");
-}
-
-void get_safe_mode(uint32_t msg)
-{
-    safemode=msg;
-    if(safemode==0)
-        printf("\nSafe Mode = Off\n\n");
-    else
-        printf("\nSafe Mode = On\n\n");
 }
 
 void get_func_loc(uint32_t msg)
@@ -187,7 +183,7 @@ void execute_puf(uint32_t msg)
 {
 	if (modet==0)
 	{
-		puf_extract_all(safemode, stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);	
+		puf_extract_all(stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq, true);
 	}
 	else if (modet==1)
 	{
@@ -207,10 +203,13 @@ void execute_puf(uint32_t msg)
 	}
 	else if (modet==5)
 	{
-		// TODO: Start PUFs from params at PUF_PARAM_LOAD_ADDRESS
+		// Start PUFs from params
+		volatile uint8_t *puf_params = (volatile uint8_t*) PUF_PARAM_LOAD_ADDRESS;
+		puf_extract_all(0xC4000000, 0xC5000000, 0x12345678, 5, 0, 0, 0, 0, false);
 	}
 }
 
+#define PUF_ARGS_AMT 9
 int time=0;
 /**
  * flag_m: Mark workmode_set_status
@@ -227,25 +226,23 @@ void get_puf_param(uint32_t msg)
 	else if (modet==0 && flag_m==1 && flag_mm==0)
 	{
 		time++;
-		switch (time%10)
+		switch (time%PUF_ARGS_AMT)
 		{
 			case  1: get_address_mode(msg);
 					 break;
-            case  2: get_safe_mode(msg);
-                     break;
-			case  3: get_func_loc(msg);
+			case  2: get_func_loc(msg);
 					 break;
-			case  4: get_start_address(msg);
+			case  3: get_start_address(msg);
 					 break;
-			case  5: get_end_address(msg);
+			case  4: get_end_address(msg);
 					 break;
-			case  6: get_init_value(msg);
+			case  5: get_init_value(msg);
 					 break;
-			case  7: get_decay_func(msg);
+			case  6: get_decay_func(msg);
 					 break;
-			case  8: get_func_freq(msg);
+			case  7: get_func_freq(msg);
 					 break;
-			case  9: get_max_measures(msg);
+			case  8: get_max_measures(msg);
 					 break;
 			case  0: get_decay_time(msg);
 					 flag_mm=1;
@@ -258,25 +255,23 @@ void get_puf_param(uint32_t msg)
 	else if (modet==1 && flag_m==1 && flag_mm==0)
 	{
 		time++;
-		switch (time%10)
+		switch (time%PUF_ARGS_AMT)
 		{
 			case  1: get_address_mode(msg);
 					 break;
-            case  2: get_safe_mode(msg);
-                     break;
-			case  3: get_func_loc(msg);
+			case  2: get_func_loc(msg);
 					 break;
-			case  4: get_start_address(msg);
+			case  3: get_start_address(msg);
 					 break;
-			case  5: get_end_address(msg);
+			case  4: get_end_address(msg);
 					 break;
-			case  6: get_init_value(msg);
+			case  5: get_init_value(msg);
 					 break;
-			case  7: get_decay_func(msg);
+			case  6: get_decay_func(msg);
 					 break;
-			case  8: get_func_freq(msg);
+			case  7: get_func_freq(msg);
 					 break;
-			case  9: get_max_measures(msg);
+			case  8: get_max_measures(msg);
 					 break;
 			case  0: get_decay_time(msg);
 					 flag_mm=1;
@@ -289,25 +284,23 @@ void get_puf_param(uint32_t msg)
 	else if (modet==2 && flag_m==1 && flag_mm==0)
 	{
 		time++;
-		switch (time%10)
+		switch (time%PUF_ARGS_AMT)
 		{
 			case  1: get_address_mode(msg);
 					 break;
-            case  2: get_safe_mode(msg);
-                     break;
-			case  3: get_func_loc(msg);
+			case  2: get_func_loc(msg);
 					 break;
-			case  4: get_start_address(msg);
+			case  3: get_start_address(msg);
 					 break;
-			case  5: get_end_address(msg);
+			case  4: get_end_address(msg);
 					 break;
-			case  6: get_init_value(msg);
+			case  5: get_init_value(msg);
 					 break;
-			case  7: get_decay_func(msg);
+			case  6: get_decay_func(msg);
 					 break;
-			case  8: get_func_freq(msg);
+			case  7: get_func_freq(msg);
 					 break;
-			case  9: get_max_measures(msg);
+			case  8: get_max_measures(msg);
 					 break;
 			case  0: get_decay_time(msg);
 					 flag_mm=1;
@@ -320,25 +313,23 @@ void get_puf_param(uint32_t msg)
 	else if (modet==3 && flag_m==1 && flag_mm==0)
 	{
 		time++;
-		switch (time%10)
+		switch (time%PUF_ARGS_AMT)
 		{
 			case  1: get_address_mode(msg);
 					 break;
-            case  2: get_safe_mode(msg);
-                     break;
-			case  3: get_func_loc(msg);
+			case  2: get_func_loc(msg);
 					 break;
-			case  4: get_start_address(msg);
+			case  3: get_start_address(msg);
 					 break;
-			case  5: get_end_address(msg);
+			case  4: get_end_address(msg);
 					 break;
-			case  6: get_init_value(msg);
+			case  5: get_init_value(msg);
 					 break;
-			case  7: get_decay_func(msg);
+			case  6: get_decay_func(msg);
 					 break;
-			case  8: get_func_freq(msg);
+			case  7: get_func_freq(msg);
 					 break;
-			case  9: get_max_measures(msg);
+			case  8: get_max_measures(msg);
 					 break;
 			case  0: get_decay_time(msg);
 					 flag_mm=1;
@@ -354,8 +345,7 @@ void get_puf_param(uint32_t msg)
 	}
 	else if (modet==5)
 	{
-        uint8_t* puf_params = (uint8_t*) PUF_PARAM_LOAD_ADDRESS;
-		// TODO: Parse PUF params
+		// Read params from PUF_PARAM_LOAD_ADDRESS
 		puf_param_mode=false;
 	}
 
@@ -368,18 +358,22 @@ void get_puf_param(uint32_t msg)
 		flag_m=1;
 
 	if (!puf_param_mode) {
-		for (int i = 1; max_measures <= 0 || i <= max_measures; ++i) {
-			// Now we have all the parameters
-			// Just continue measuring
-            printf("Starting %dth measurement...\n", i);
+		if (modet == 5) {
 			execute_puf(msg);
+		} else {
+			for (int i = 1; max_measures <= 0 || i <= max_measures; ++i) {
+				// Now we have all the parameters
+				// Just continue measuring
+				printf("Starting %dth measurement...\n", i);
+				execute_puf(msg);
+			}
+
+			// printf("Measurements done! Restarting kernel...\n");
+
+			// TODO: Send magic number to kernel to restart it
+			/*while ((ARM_1_MAIL0_STA) & ARM_MS_FULL);
+			ARM_1_MAIL0_WRT = 0x01234567;*/
 		}
-
-        printf("Measurements done! Restarting kernel...\n");
-
-		// TODO: Send magic number to kernel to restart it
-        /*while ((ARM_1_MAIL0_STA) & ARM_MS_FULL);
-        ARM_1_MAIL0_WRT = 0x01234567;*/
 	}
 }
 
@@ -390,9 +384,9 @@ void get_puf_param(uint32_t msg)
  */
 void arm_monitor_interrupt() {
   uint32_t msg = ARM_1_MAIL1_RD;
-  printf("VPU MBOX rcv: 0x%lX, cnf 0x%lX\n",
+  /*printf("VPU MBOX rcv: 0x%lX, cnf 0x%lX\n",
       msg,
-      ARM_1_MAIL1_CNF);
+      ARM_1_MAIL1_CNF);*/
 
   if (msg == 0x12345678) {
 	// Magic number received; enter param mode

@@ -179,11 +179,6 @@ void TestAllAddress() {
     mailbox_write(addmode);
     delay_ms(50);
 
-    uart_puts("Safe mode: 0:off 1:on|: ");
-    int safemode = getaddmode();
-    mailbox_write(safemode);
-    delay_ms(50);
-
     uart_puts("Choose function running location: 0:CPU 1:GPU|: ");
     int funcloc = getaddmode();
     mailbox_write(funcloc);
@@ -237,11 +232,6 @@ void TestPuf() {
     mailbox_write(addmode);
     delay_ms(50);
 
-    uart_puts("Safe mode: 0:off 1:on|: ");
-    int safemode = getaddmode();
-    mailbox_write(safemode);
-    delay_ms(50);
-
     uart_puts("Choose function running location: 0:CPU 1:GPU|: ");
     int funcloc = getaddmode();
     mailbox_write(funcloc);
@@ -293,11 +283,6 @@ void TestCustom() {
     //uart_puts("Choose address mode: 0:brc 1:rbc|: ");
     int addmode = 0;
     mailbox_write(addmode);
-    delay_ms(50);
-
-    //uart_puts("Safe mode: 0:off 1:on|: ");
-    int safemode = 0;
-    mailbox_write(safemode);
     delay_ms(50);
 
     //uart_puts("Choose function running location: 0:CPU 1:GPU|: ");
@@ -355,11 +340,6 @@ void TestOneRow() {
     mailbox_write(addmode);
     delay_ms(50);
 
-    uart_puts("Safe mode: 0:off 1:on|: ");
-    int safemode = getaddmode();
-    mailbox_write(safemode);
-    delay_ms(50);
-
     uart_puts("Choose function running location: 0:CPU 1:GPU|: ");
     int funcloc = getaddmode();
     mailbox_write(funcloc);
@@ -413,11 +393,6 @@ void TestAtInterval() {
     uart_puts("Choose address mode: 0:brc 1:rbc|: ");
     int addmode = getaddmode();
     mailbox_write(addmode);
-    delay_ms(50);
-
-    uart_puts("Safe mode: 0:off 1:on|: ");
-    int safemode = getaddmode();
-    mailbox_write(safemode);
     delay_ms(50);
 
     uart_puts("Choose function running location: 0:CPU 1:GPU|: ");
