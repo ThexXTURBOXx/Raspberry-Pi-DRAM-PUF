@@ -27,7 +27,8 @@ First stage monitor.
 #include "getpuf/GetPuf.c"
 
 #define logf(fmt, ...) printf("[SDRAM:%s]: " fmt, __FUNCTION__, ##__VA_ARGS__);
-#define PUF_PARAM_LOAD_ADDRESS 0x4000000U
+
+#define FIRMWARE_ANSWER(fmt, ...) //printf(fmt, ##__VA_ARGS__);
 
 struct tagged_packet {
   uint32_t tag;
@@ -70,17 +71,17 @@ int getmode(uint32_t msg)
 	mode=msg;
 	switch (mode)
 	{
-		case  0: printf("\nMemory dump (bit)\n\n");
+		case  0: FIRMWARE_ANSWER("\nMemory dump (bit)\n\n");
 				 break;
-		case  1: printf("\nGet All PUF (cell)\n\n");
+		case  1: FIRMWARE_ANSWER("\nGet All PUF (cell)\n\n");
 				 break;
-		case  2: printf("\nGet All PUF (bitflip)\n\n");
+		case  2: FIRMWARE_ANSWER("\nGet All PUF (bitflip)\n\n");
 				 break;
-		case  3: printf("\nExtract PUF at Intervals\n\n");
+		case  3: FIRMWARE_ANSWER("\nExtract PUF at Intervals\n\n");
 				 break;
-		case  5: printf("\nTest Params from SD Card\n\n");
+		case  5: FIRMWARE_ANSWER("\nTest Params from SD Card\n\n");
 				 break;
-		default: printf("\nUnknown value\n\n");
+		default: FIRMWARE_ANSWER("\nUnknown value\n\n");
 				 break;
 	}
 
@@ -91,18 +92,18 @@ void get_address_mode(uint32_t msg)
 {
 	addmode=msg;
 	if(addmode==0)
-		printf("\nAddress Mode = BRC\n\n");
+		FIRMWARE_ANSWER("\nAddress Mode = BRC\n\n");
 	else
-		printf("\nAddress Mode = RBC\n\n");
+		FIRMWARE_ANSWER("\nAddress Mode = RBC\n\n");
 }
 
 void get_func_loc(uint32_t msg)
 {
 	funcloc=msg;
 	if(funcloc==0)
-		printf("\nFunction run on CPU\n\n");
+		FIRMWARE_ANSWER("\nFunction run on CPU\n\n");
 	else
-		printf("\nFunction run on GPU\n\n");
+		FIRMWARE_ANSWER("\nFunction run on GPU\n\n");
 }
 
 void get_decay_func(uint32_t msg)
@@ -111,11 +112,11 @@ void get_decay_func(uint32_t msg)
 
 	switch (dcyfunc)
 	{
-		case  1: printf("\nAdd\n\n");
+		case  1: FIRMWARE_ANSWER("\nAdd\n\n");
 				 break;
-		case  2: printf("\nDIV\n\n");
+		case  2: FIRMWARE_ANSWER("\nDIV\n\n");
 				 break;
-		default: printf("\nNo operation\n\n");
+		default: FIRMWARE_ANSWER("\nNo operation\n\n");
 				 break;
 	}
 }
@@ -123,13 +124,13 @@ void get_decay_func(uint32_t msg)
 void get_func_freq(uint32_t msg)
 {
 	nfreq=msg;
-	printf("\nFunction execution interval = %d us\n\n", (nfreq*50));
+	FIRMWARE_ANSWER("\nFunction execution interval = %d us\n\n", (nfreq*50));
 }
 
 void get_max_measures(uint32_t msg)
 {
 	max_measures=msg;
-	printf("\nAmount of measurements = %d\n\n", (max_measures));
+	FIRMWARE_ANSWER("\nAmount of measurements = %d\n\n", (max_measures));
 }
 
 void cpu_code(uint32_t msg)
@@ -159,25 +160,25 @@ void cpu_code(uint32_t msg)
 void get_start_address(uint32_t msg)
 {
 	stradd=msg;
-	printf("\nPUF start address = 0x%08X\n\n",stradd);
+	FIRMWARE_ANSWER("\nPUF start address = 0x%08X\n\n",stradd);
 }
 
 void get_end_address(uint32_t msg)
 {
 	endadd=msg;
-	printf("\nPUF end address = 0x%08X\n\n",endadd);
+	FIRMWARE_ANSWER("\nPUF end address = 0x%08X\n\n",endadd);
 }
 
 void get_init_value(uint32_t msg)
 {
 	initvalue=msg;
-	printf("\nPUF init value = 0x%08X\n\n",initvalue);
+	FIRMWARE_ANSWER("\nPUF init value = 0x%08X\n\n",initvalue);
 }
 
 void get_decay_time(uint32_t msg)
 {
 	decaytime=msg;
-	printf("\ndecaytime = %d s\n\n",decaytime);
+	FIRMWARE_ANSWER("\ndecaytime = %d s\n\n",decaytime);
 }
 
 volatile int modet=0,pass=0;
@@ -206,10 +207,7 @@ void execute_puf(uint32_t msg)
 	}
 	else if (modet==5)
 	{
-		if (pass >= 12) return;
-		// Start PUFs from params
-		volatile uint8_t *puf_params = (volatile uint8_t*) PUF_PARAM_LOAD_ADDRESS;
-		curr_size = puf_mem_dmp(0xC4000000, 0xC4001000, 0x12345678, 10, 0, 0, 0, 0);
+		curr_size = puf_mem_dmp(stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);
 		mailbox_write(curr_size);
 	}
 }
@@ -344,13 +342,34 @@ void get_puf_param(uint32_t msg)
 			default: break;
 		}
 	}
-	else if (modet==4)
-	{
-		puf_param_mode=false;
-	}
 	else if (modet==5)
 	{
-		// Read params from PUF_PARAM_LOAD_ADDRESS
+		time++;
+		switch (time%(PUF_ARGS_AMT-1))
+		{
+			case  1: get_start_address(msg);
+					 break;
+			case  2: get_end_address(msg);
+					 break;
+			case  3: get_init_value(msg);
+					 break;
+			case  4: get_decay_time(msg);
+					 break;
+			case  5: get_address_mode(msg);
+					 break;
+			case  6: get_func_loc(msg);
+					 break;
+			case  7: get_decay_func(msg);
+					 break;
+			case  0: get_func_freq(msg);
+					 time=0;
+					 puf_param_mode=false;
+					 break;
+			default: break;
+		}	
+	}
+	else if (modet==4)
+	{
 		puf_param_mode=false;
 	}
 
@@ -416,7 +435,7 @@ void arm_monitor_interrupt() {
   }
 
   if (curr_size) {
-	volatile uint32_t *puf_result = (volatile uint32_t*) 0xC4000000; // TODO: start adress
+	volatile uint32_t *puf_result = (volatile uint32_t*) stradd; // TODO: start adress
 	mailbox_write(puf_result[msg]);
 	return;
   }

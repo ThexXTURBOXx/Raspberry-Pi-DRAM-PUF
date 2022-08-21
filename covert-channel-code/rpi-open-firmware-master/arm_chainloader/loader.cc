@@ -98,36 +98,6 @@ struct LoaderImpl {
 
     logf("kernel cmdline: %s\n", cmdline);
 
-    /* read PUF params file if it exists */
-    uint8_t* puf_params = reinterpret_cast<uint8_t*>(PUF_PARAM_LOAD_ADDRESS);
-    size_t paramlen = read_file("pufs.txt", puf_params, false, false);
-    if (paramlen) {
-      logf("loaded puf params: %s\n", puf_params);
-    }
-
-    /* This seems to work flawlessly up to a certain point
-#define L1 17
-#define L2 256
-#define L3 17
-    uint8_t* teststr = new uint8_t[L1*L2*L3];
-    printf("init\n");
-    long i=0,j=0,k=0,l=0;
-    for (i = 0; i < L1; i++) {
-      if (!(i % 10)) printf("i%d\n", i);
-          for (j = 0; j < L2; j++) {
-      if (!(j % 10)) printf("j%d\n", j);
-                for (k = 0; k < L3; k++) {
-      if (!(k % 10)) printf("k%d %d\n", k, teststr[l]);
-                  teststr[l++] = j;
-                }
-          }
-    }
-    printf("filled\n");
-    write_file("h.txt", teststr, L1*L2*L3);
-    printf("written\n");
-    delete[] teststr;
-    */
-
     /* load flat device tree */
     uint8_t* fdt;
     if (do_load_initrd) {
@@ -201,6 +171,8 @@ struct LoaderImpl {
     return p;
   }
 
+  #include "getparam.cc"
+
   inline void __attribute__((noreturn)) run_linux(linux_t kernel, uint8_t *fdt) {
     /* fire away -- this should never return */
 
@@ -218,6 +190,8 @@ struct LoaderImpl {
       int pass = 0, temp = 0, dec = 0;
       uint32_t curr_size = 0, curr_size_bytes = 0, v = 0;
       uint32_t *puf_result = reinterpret_cast<uint32_t*>(PUF_RESULT);
+      uint8_t *puf_result_8 = reinterpret_cast<uint8_t*>(PUF_RESULT);
+      char* puf_params = reinterpret_cast<char*>(PUF_PARAM_LOAD_ADDRESS);
 
 #define MAX_FILE_NAME_SIZE 8
       char file_name[MAX_FILE_NAME_SIZE + 1];
@@ -225,10 +199,69 @@ struct LoaderImpl {
 
       // Send magic number and dump mode specifier
       mailbox_write(0xf2345678);
+      delay_ms(50);
       mailbox_write(5);
-      mailbox_write(5);
+      delay_ms(50);
 
       while (1) {
+        printf("Starting run #%d...\n", pass);
+
+        // Read file again because RPi is stupid
+        uint8_t* puf_params_start = reinterpret_cast<uint8_t*>(PUF_PARAM_LOAD_ADDRESS);
+        read_file("pufs.txt", puf_params_start, false, false);
+
+        // Read next PUF params
+        skip_comments(puf_params, '#', '\n');
+
+        printf("Sending params to FW: ");
+
+        const int stradd = getaddress(puf_params, '\t');
+        mailbox_write(stradd);
+        printf("0x%x,", stradd);
+        delay_ms(50);
+
+        const int endadd = getaddress(puf_params, '\t');
+        mailbox_write(endadd);
+        printf("0x%x,", endadd);
+        delay_ms(50);
+
+        const int initval = getinitvalue(puf_params, '\t');
+        mailbox_write(initval);
+        printf("0x%x,", initval);
+        delay_ms(50);
+
+        const int decaytime = getdecaytime(puf_params, '\t');
+        mailbox_write(decaytime);
+        printf("%d,", decaytime);
+        delay_ms(50);
+
+        const int addmode = getaddmode(puf_params, '\t');
+        mailbox_write(addmode);
+        printf("%d,", addmode);
+        delay_ms(50);
+
+        const int funcloc = getaddmode(puf_params, '\t');
+        mailbox_write(funcloc);
+        printf("%d,", funcloc);
+        delay_ms(50);
+
+        const int dcyfunc = getmode(puf_params, '\t');
+        mailbox_write(dcyfunc);
+        printf("%d,", dcyfunc);
+        delay_ms(50);
+
+        const int nfreq = getfuncfreq(puf_params, '\n');
+        mailbox_write(nfreq);
+        printf("%d\n", nfreq);
+
+        // Wow, such wow, fancy progress thingy
+        for (temp = 1; temp <= 9; ++temp) {
+            delay_ms(decaytime * 100);
+            printf("\rPUF is about %d%% finished", temp * 10);
+        }
+        printf("\n");
+
+        // PUF is finished
         curr_size = mailbox_read();
         curr_size_bytes = curr_size*4;
         printf("Received write signal for %u bytes (%u ints)\n", curr_size_bytes, curr_size);
@@ -252,12 +285,13 @@ struct LoaderImpl {
           file_name[i] = (temp / dec) + '0';
           temp %= dec;
         }
-        write_file(file_name, reinterpret_cast<uint8_t*>(puf_result), curr_size_bytes);
+        write_file(file_name, puf_result_8, curr_size_bytes);
         printf("Memory dump of %u bytes written\n", curr_size_bytes);
 
         // After each run, send magic number again
         ++pass;
         mailbox_write(0xf2345678);
+        delay_ms(50);
       }
     }
   }
@@ -304,7 +338,7 @@ struct LoaderImpl {
     uint32_t elapsed = stop - start;
 
     uint32_t bytes_per_second = (double)len / ((double)(elapsed) / 1000 / 1000);
-    printf("%d kbyte copied at a rate of %ld kbytes/second, CRC32: 0x%x\n", len/1024, bytes_per_second/1024, 0); //rc_crc32(0, (const char*)dest, len));
+    logf("%d kbyte copied at a rate of %ld kbytes/second, CRC32: 0x%x\n", len/1024, bytes_per_second/1024, 0); //rc_crc32(0, (const char*)dest, len));
 
     return len;
   }
@@ -315,7 +349,7 @@ struct LoaderImpl {
     FIL fp;
     f_open(&fp, path, FA_WRITE | mode);
 
-    printf("Writing %d bytes to %s...\n", len, path);
+    logf("Writing %d bytes to %s...\n", len, path);
 
     f_write(&fp, src, len, &len);
     f_close(&fp);
@@ -324,7 +358,7 @@ struct LoaderImpl {
     uint32_t elapsed = stop - start;
 
     uint32_t bytes_per_second = (double)len / ((double)(elapsed) / 1000 / 1000);
-    printf("%d kbyte copied at a rate of %ld kbytes/second, CRC32: 0x%x\n", len/1024, bytes_per_second/1024, 0); //rc_crc32(0, (const char*)dest, len));
+    logf("%d kbyte copied at a rate of %ld kbytes/second, CRC32: 0x%x\n", len/1024, bytes_per_second/1024, 0); //rc_crc32(0, (const char*)dest, len));
 
     return len;
   }
