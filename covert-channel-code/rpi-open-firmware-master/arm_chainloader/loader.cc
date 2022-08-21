@@ -189,8 +189,6 @@ struct LoaderImpl {
 
       int pass = 0, temp = 0, dec = 0;
       uint32_t curr_size = 0, curr_size_bytes = 0, v = 0;
-      uint32_t *puf_result = reinterpret_cast<uint32_t*>(PUF_RESULT);
-      uint8_t *puf_result_8 = reinterpret_cast<uint8_t*>(PUF_RESULT);
       char* puf_params = reinterpret_cast<char*>(PUF_PARAM_LOAD_ADDRESS);
 
 #define MAX_FILE_NAME_SIZE 8
@@ -272,10 +270,11 @@ struct LoaderImpl {
           mailbox_write(i);
           v = mailbox_read();
           // Fix memory alignment
-          puf_result[i] = ((v & 0x000000ff) << 24)
-                        | ((v & 0x0000ff00) << 8)
-                        | ((v & 0x00ff0000) >> 8)
-                        | ((v & 0xff000000) >> 24);
+          reinterpret_cast<uint32_t*>(PUF_RESULT)[i] =
+                  ((v & 0x000000ff) << 24)
+                | ((v & 0x0000ff00) << 8)
+                | ((v & 0x00ff0000) >> 8)
+                | ((v & 0xff000000) >> 24);
         }
         printf("Received PUF result\n");
 
@@ -285,7 +284,7 @@ struct LoaderImpl {
           file_name[i] = (temp / dec) + '0';
           temp %= dec;
         }
-        write_file(file_name, puf_result_8, curr_size_bytes);
+        write_file(file_name, reinterpret_cast<uint8_t*>(PUF_RESULT), curr_size_bytes);
         printf("Memory dump of %u bytes written\n", curr_size_bytes);
 
         // After each run, send magic number again
