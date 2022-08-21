@@ -39,7 +39,7 @@ void sendFlag(uint32_t flag) {
 int loop() {
     // Send magic number to enter PUF param mode
     delay_ms(50);
-    sendFlag(0x12345678);
+    sendFlag(0xf2345678);
 
     uart_puts("$|Choose mode:\r\n 0: memory dump (bit)\r\n 1: test all addresses (cell)\r\n 2: test all addresses (bitflip summary)\r\n 3: extract at interval\r\n 4: test params in kernel|: ");
     int input = getmode();

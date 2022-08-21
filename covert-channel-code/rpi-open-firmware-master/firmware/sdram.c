@@ -27,7 +27,7 @@ VideoCoreIV SDRAM initialization code.
 #include "romstage.h"
 #include "sdram.h"
 
-void sdram_init();
+void sdram_init(bool);
 
 /*
  Registers
@@ -48,7 +48,7 @@ void sdram_init();
 #define MR_REQUEST_SUCCESS(x) ((SD_MR_TIMEOUT_SET & x) != SD_MR_TIMEOUT_SET)
 #define MR_GET_RDATA(x) ((x & SD_MR_RDATA_SET) >> SD_MR_RDATA_LSB)
 
-#define SIP_DEBUG(x) x
+#define SIP_DEBUG(x) //x
 #define SCLKU_DEBUG(x) //SIP_DEBUG(x)
 
 #define BIST_pvt    0x20
@@ -56,7 +56,7 @@ void sdram_init();
 
 #define PVT_calibrate_request 0x1
 
-#define logf(fmt, ...) print_timestamp(); printf("[SDRAM:%s]: " fmt, __FUNCTION__, ##__VA_ARGS__);
+#define logf(fmt, ...) //print_timestamp(); printf("[SDRAM:%s]: " fmt, __FUNCTION__, ##__VA_ARGS__);
 
 enum RamSize g_RAMSize = kRamSizeUnknown;
 
@@ -200,22 +200,25 @@ lpddr2_timings_t g_InitSdramParameters = {
 	.banklow = 2
 };
 
-static void reset_with_timing(lpddr2_timings_t* T) {
+static void reset_with_timing(lpddr2_timings_t* T, bool print) {
 	uint32_t ctrl = 0x4;
 
 	SD_CS = (SD_CS & ~(SD_CS_DEL_KEEP_SET|SD_CS_DPD_SET|SD_CS_RESTRT_SET)) | SD_CS_STBY_SET;
 
 	/* wait for SDRAM controller to go down */
-	SIP_DEBUG(logf("waiting for SDRAM controller to go down (%lX) ...\n", SD_CS));
+	if (print)
+	    SIP_DEBUG(logf("waiting for SDRAM controller to go down (%lX) ...\n", SD_CS));
 	for (;;) if ((SD_CS & SD_CS_SDUP_SET) == 0) break;
-	SIP_DEBUG(logf("SDRAM controller down!\n"));
+	if (print)
+	    SIP_DEBUG(logf("SDRAM controller down!\n"));
 
 	/* disable SDRAM clock */
 	clkman_update_begin();
 	CM_SDCCTL = (CM_SDCCTL & ~(CM_SDCCTL_ENAB_SET|CM_SDCCTL_CTRL_SET)) | CM_PASSWORD;
 	clkman_update_end();
 
-	SIP_DEBUG(logf("SDRAM clock disabled!\n"));
+	if (print)
+	    SIP_DEBUG(logf("SDRAM clock disabled!\n"));
 
 	/*
 	 * Migrate over to master PLL.
@@ -232,9 +235,11 @@ static void reset_with_timing(lpddr2_timings_t* T) {
 
 	APHY_CSR_DDR_PLL_GLOBAL_RESET = 1;
 
-	SIP_DEBUG(logf("waiting for master ddr pll to lock ...\n"));
+	if (print)
+	    SIP_DEBUG(logf("waiting for master ddr pll to lock ...\n"));
 	for (;;) if (APHY_CSR_DDR_PLL_LOCK_STATUS & (1 << 16)) break;
-	SIP_DEBUG(logf("master ddr pll locked!\n"));
+	if (print)
+	    SIP_DEBUG(logf("master ddr pll locked!\n"));
 
 	APHY_CSR_DDR_PLL_POST_DIV_RESET = 1;
 
@@ -256,7 +261,8 @@ static void reset_with_timing(lpddr2_timings_t* T) {
 	    | (T->rowbits << SD_SB_ROWBITS_LSB)
 	    | (T->colbits << SD_SB_COLBITS_LSB);
 
-	logf("SDRAM Addressing Mode: Bank=%ld Row=%ld Col=%ld SB=0x%lX\n", T->banklow, T->rowbits, T->colbits, SD_SB);
+	if (print)
+	    logf("SDRAM Addressing Mode: Bank=%ld Row=%ld Col=%ld SB=0x%lX\n", T->banklow, T->rowbits, T->colbits, SD_SB);
 
 	SD_SC =
 	    (T->tRFCab << SD_SC_T_RFC_LSB)
@@ -293,9 +299,11 @@ static void reset_with_timing(lpddr2_timings_t* T) {
 	reset_phy_dll();
 
 	/* wait for address line pll to come back */
-	SIP_DEBUG(logf("waiting for address dll to lock ...\n"));
+	if (print)
+	    SIP_DEBUG(logf("waiting for address dll to lock ...\n"));
 	for (;;) if (APHY_CSR_GLBL_ADR_DLL_LOCK_STAT == 3) break;
-	SIP_DEBUG(logf("address dll locked!\n"));
+	if (print)
+	    SIP_DEBUG(logf("address dll locked!\n"));
 
 	/* tell sdc we're done messing with address lines */
 	APHY_CSR_PHY_BIST_CNTRL_SPR = 0x0;
@@ -449,10 +457,11 @@ static void init_late() {
 		panic("SDRAM self test failed!"); \
 	}
 
-static void selftest_at(uint32_t addr) {
+static void selftest_at(uint32_t addr, bool print) {
 	volatile uint32_t* ram = (volatile uint32_t*)addr;
 
-	logf("Testing region at 0x%lX ...\n", addr);
+	if (print)
+	    logf("Testing region at 0x%lX ...\n", addr);
 
 	for (int i = 0; i < 0x1000; i += 4) {
 		ram[i]     = RT_PAT0;
@@ -469,23 +478,25 @@ static void selftest_at(uint32_t addr) {
 	}
 }
 
-static void selftest() {
-	logf("Starting self test ...\n");
+static void selftest(bool print) {
+	if (print)
+	    logf("Starting self test ...\n");
 
-	selftest_at(RT_BASE);
+	selftest_at(RT_BASE, print);
 
 	if (g_RAMSize == kRamSize256MB || g_RAMSize == kRamSize512MB || g_RAMSize == kRamSize1GB) {
-		selftest_at(RT_BASE + 0xFF00000);
+		selftest_at(RT_BASE + 0xFF00000, print);
 	}
 	if (g_RAMSize == kRamSize256MB || g_RAMSize == kRamSize1GB) {
-		selftest_at(RT_BASE + 0x1FF00000);
+		selftest_at(RT_BASE + 0x1FF00000, print);
 	}
 	if (g_RAMSize == kRamSize1GB) {
-		selftest_at(RT_BASE + 0x2FF00000);
-		selftest_at(RT_BASE + 0x3FF00000);
+		selftest_at(RT_BASE + 0x2FF00000, print);
+		selftest_at(RT_BASE + 0x3FF00000, print);
 	}
 
-	logf("Self test successful!\n");
+	if (print)
+	    logf("Self test successful!\n");
 }
 
 #undef RT_ASSERT
@@ -538,7 +549,7 @@ static void selftest() {
 	
 }*/
 
-void timing_init()
+void timing_init(bool print)
 {
 	if (g_RAMSize == kRamSize1GB) {
 		g_InitSdramParameters.colbits = 3;
@@ -548,19 +559,20 @@ void timing_init()
 		g_InitSdramParameters.colbits = 2;
 	}
 
-	reset_with_timing(&g_InitSdramParameters);
+	reset_with_timing(&g_InitSdramParameters, print);
 	init_late();
 	// puf_extracted();
-	selftest();
+	//selftest(print); // TODO: For some reason this breaks SD card writing
 }
 
 
-void sdram_init();
+void sdram_init(bool);
 
-void sdram_init() {
+void sdram_init(bool print) {
 	uint32_t vendor_id, bc;
 
-	logf("(0) SD_CS = 0x%lX\n", SD_CS);
+    if (print)
+	    logf("(0) SD_CS = 0x%lX\n", SD_CS);
 
 	PM_SMPS = PM_PASSWORD | 0x1;
 	A2W_SMPS_LDO1 = A2W_PASSWORD | 0x40000;
@@ -592,9 +604,11 @@ void sdram_init() {
 	SD_CS = 0x200042;
 
 	/* wait for SDRAM controller */
-	logf("waiting for SDUP (%lX) ...\n", SD_CS);
+	if (print)
+	    logf("waiting for SDUP (%lX) ...\n", SD_CS);
 	for (;;) if (SD_CS & SD_CS_SDUP_SET) break;
-	logf("SDRAM controller has arrived! (%lX)\n", SD_CS);
+	if (print)
+	    logf("SDRAM controller has arrived! (%lX)\n", SD_CS);
 
 	/* RL = 6 / WL = 3 */
 	write_mr(LPDDR2_MR_DEVICE_FEATURE_2, 4, false);
@@ -615,7 +629,8 @@ void sdram_init() {
 
 	g_RAMSize = lpddr2_size(bc);
 
-	logf("SDRAM Type: %s %s LPDDR2 (BC=0x%lX)\n",
+	if (print)
+	    logf("SDRAM Type: %s %s LPDDR2 (BC=0x%lX)\n",
 	     lpddr2_manufacturer_name(vendor_id),
 	     size_to_string[g_RAMSize],
 	     bc);
@@ -640,8 +655,8 @@ void sdram_init() {
 		g_InitSdramParameters.colbits = 2;
 	}
 
-	reset_with_timing(&g_InitSdramParameters);
+	reset_with_timing(&g_InitSdramParameters, print);
 	init_late();
 	// puf_extracted();
-	selftest();
+	selftest(print);
 }

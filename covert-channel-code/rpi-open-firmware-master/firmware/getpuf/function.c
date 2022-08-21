@@ -4,7 +4,7 @@
 
 
 
-static void multi(uint32_t a, uint32_t b)
+void multi(uint32_t a, uint32_t b)
 {
 
     for(int i=0; i<1000000; i++)
@@ -13,7 +13,7 @@ static void multi(uint32_t a, uint32_t b)
     }
 }
 
-static void add(uint32_t a, uint32_t b)
+void add(uint32_t a, uint32_t b)
 {
 
     for(int i=0; i<1000000; i++)
@@ -22,7 +22,7 @@ static void add(uint32_t a, uint32_t b)
     }
 }
 
-static void sub(uint32_t a, uint32_t b)
+void sub(uint32_t a, uint32_t b)
 {
 
     for(int i=0; i<1000000; i++)
@@ -31,7 +31,7 @@ static void sub(uint32_t a, uint32_t b)
     }
 }
 
-static void division(uint32_t a,uint32_t b)
+void division(uint32_t a,uint32_t b)
 {
     for(int i=0; i<1000000; i++)
     {
@@ -39,7 +39,7 @@ static void division(uint32_t a,uint32_t b)
     }
 }
 
-static void modulo(uint32_t a,uint32_t b)
+void modulo(uint32_t a,uint32_t b)
 {
     for(int i=0; i<1000000; i++)
     {

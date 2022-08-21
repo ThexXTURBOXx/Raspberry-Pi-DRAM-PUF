@@ -121,7 +121,7 @@ int _main(unsigned int cpuid, uint32_t load_address, vc4_saved_state_t* pcb) {
 	__cxx_init();
 
 	/* bring up SDRAM */
-	sdram_init();
+	sdram_init(true);
 	puts("SDRAM initialization completed successfully!\n");
 
   setup_eth_clock(&otpInfo);

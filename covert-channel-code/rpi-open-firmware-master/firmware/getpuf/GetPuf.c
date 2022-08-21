@@ -3,13 +3,9 @@
 #include "PufAddress.h"
 #include "function.c"
 
-extern void timing_init();
+extern void timing_init(bool);
 
 #define logf(fmt, ...) printf("[SDRAM:%s]: " fmt, __FUNCTION__, ##__VA_ARGS__);
-#define PUF_START_SIGNAL       0x2800000U
-#define PUF_WRITTEN_SIGNAL     0x2800004U
-#define PUF_RESULT             0x2800008U
-#define PUF_PARAM_LOAD_ADDRESS 0x4000000U
 
 /**
  * Description: Manually refresh address segments stored with code
@@ -17,7 +13,7 @@ extern void timing_init();
  *
  * Input: decay_time
 **/
-static unsigned long MRList[]={
+unsigned long MRList[]={
 	0xc0023000,
 	0xc0024000,
 	0xc0123000,
@@ -38,7 +34,7 @@ int inArray(unsigned long a)
 	return 0;
 }
 
-static void GPUfunc(int dcy_func)
+void GPUfunc(int dcy_func)
 {
 	switch(dcy_func)
 	{
@@ -55,7 +51,7 @@ static void GPUfunc(int dcy_func)
 		default: break;
 	}
 }
-static void Refresh()
+void Refresh()
 {
 	int length=sizeof(MRList)/4;
 	unsigned long temp=0xc0000000;
@@ -87,7 +83,7 @@ static void Refresh()
 }
 
 
-static void ManuallyRefresh(int decay_time,int dcy_func,int nfreq)
+void ManuallyRefresh(int decay_time,int dcy_func,int nfreq, bool print)
 {	
 	int freq_func=nfreq;			// func_freq=n*50us
 	int ftp=0;
@@ -168,11 +164,14 @@ static void ManuallyRefresh(int decay_time,int dcy_func,int nfreq)
 	
 	if(function_count!=0)
 	{
-		printf("function_count = %d\n",function_count );
-		printf("function time = %d us\n",ufunc_t);
+		if (print) {
+			printf("function_count = %d\n",function_count );
+			printf("function time = %d us\n",ufunc_t);
+		}
 	}
 	
-	printf("Manually refresh");
+	if (print)
+		printf("Manually refresh");
 }
 
 /**
@@ -197,7 +196,7 @@ unsigned long cal(unsigned long x)
  * 
  * Input: puf_addr, puf_size, puf_init_value
 **/
-/*static void puf_init(unsigned long addr,unsigned int puf_size, unsigned int init_value)
+/*void puf_init(unsigned long addr,unsigned int puf_size, unsigned int init_value)
 {
 	for(unsigned int puf_write_loop=0;puf_write_loop<puf_size;puf_write_loop++)
 	{
@@ -221,7 +220,7 @@ unsigned long cal(unsigned long x)
  * 
  * Input: start_addr, end_addr, puf_init_value
 **/
-static void puf_init_all(unsigned long start_addr, unsigned long end_addr, unsigned int init_value)
+void puf_init_all(unsigned long start_addr, unsigned long end_addr, unsigned int init_value)
 {
 	unsigned long addr;
 	for(addr=start_addr; addr<=end_addr; addr+=4)
@@ -245,7 +244,7 @@ static void puf_init_all(unsigned long start_addr, unsigned long end_addr, unsig
  * Input: start_addr, end_addr, itvl
  *
 **/
-static void puf_read_itvl(unsigned long start_addr, unsigned long end_addr, unsigned int add_mode)
+void puf_read_itvl(unsigned long start_addr, unsigned long end_addr, unsigned int add_mode)
 {
 	unsigned long itvl=(end_addr-start_addr)/0x1000000;
 
@@ -305,15 +304,11 @@ static void puf_read_itvl(unsigned long start_addr, unsigned long end_addr, unsi
  * Input: puf_addr
  *
 **/
-static void puf_read_all(unsigned long start_addr, unsigned long end_addr, unsigned int add_mode, bool to_stdout)
+uint32_t puf_read_all(unsigned long start_addr, unsigned long end_addr, unsigned int add_mode)
 {
     printf("&|");
-	volatile uint32_t *puf_result = (volatile uint32_t*) PUF_RESULT;
-	volatile uint32_t *puf_start = (volatile uint32_t*) PUF_START_SIGNAL;
-	uint32_t puf_read_val=0;
-	uint32_t puf_cell=0;
-	unsigned long addr;
-    unsigned long bank, row, col;
+	uint32_t puf_read_val=0, puf_cell=0;
+	unsigned long addr, bank, row, col;
     if(add_mode==0)
     {
         bank=(0x1c000000&start_addr)>>26;				//calculate the number of bank
@@ -326,10 +321,7 @@ static void puf_read_all(unsigned long start_addr, unsigned long end_addr, unsig
         bank=(0x00007000&start_addr)>>12;				//14:12
         col=(0x00000ffc&start_addr)>>2;					//calculate the number of column
     }
-	if (to_stdout)
-	    printf("%d%04X%03X,", bank, row, col);
-	//else
-	//    printf("%d%04X%03X,", bank, row, col); // TODO to file somehow?
+	printf("%d%04X%03X,", bank, row, col);
 	for (addr=start_addr;addr<end_addr;addr+=4)
 	{
 		if(addr >= end_addr)
@@ -337,27 +329,20 @@ static void puf_read_all(unsigned long start_addr, unsigned long end_addr, unsig
 		else if((addr>=0xC3000000&&addr<0xCf000000)||(addr>=0xD0000000&&addr<0xE0000000))
 		{
 			/* calculate the number of bit-flip in one cell */
+			++puf_cell;
 			puf_read_val=mmio_read32(addr);
-			//unsigned int sum_flip=cal(puf_read_val);
-			//if(sum_flip!=0)
-			//{
-                puf_cell++;
-				if (to_stdout) {
-					printf("%c%c%c%c", (unsigned char)(puf_read_val>>24),
-									(unsigned char)(puf_read_val>>16),
-									(unsigned char)(puf_read_val>>8),
-									(unsigned char)puf_read_val);
-				} else {
-					*(puf_result += 4) = puf_read_val;
-				}
-			//}
+			printf("%c%c%c%c", (unsigned char)(puf_read_val>>24),
+							(unsigned char)(puf_read_val>>16),
+							(unsigned char)(puf_read_val>>8),
+							(unsigned char)puf_read_val);
 		}
 	}
-	*puf_start = puf_cell;
     printf("|&\n");
     printf("puf_cell=%d|$\n",puf_cell);
     delay_ms(100);
+	return puf_cell;
 }
+
 /**
  * Description: Read the value of puf of one cell to 
  * the specified address segment
@@ -365,7 +350,31 @@ static void puf_read_all(unsigned long start_addr, unsigned long end_addr, unsig
  * Input: puf_addr
  *
 **/
-static void puf_read_ext(unsigned long start_addr, unsigned long end_addr, unsigned int add_mode)
+uint32_t puf_count_cells(unsigned long start_addr, unsigned long end_addr)
+{
+	uint32_t puf_cell=0;
+	unsigned long addr;
+	for (addr=start_addr;addr<end_addr;addr+=4)
+	{
+		if(addr >= end_addr)
+	    	break;
+		else if((addr>=0xC3000000&&addr<0xCf000000)||(addr>=0xD0000000&&addr<0xE0000000))
+		{
+			/* calculate the number of bit-flip in one cell */
+			++puf_cell;
+		}
+	}
+	return puf_cell;
+}
+
+/**
+ * Description: Read the value of puf of one cell to 
+ * the specified address segment
+ * 
+ * Input: puf_addr
+ *
+**/
+void puf_read_ext(unsigned long start_addr, unsigned long end_addr, unsigned int add_mode)
 {
     printf("&|");
 	unsigned int puf_read_val=0;
@@ -413,7 +422,7 @@ static void puf_read_ext(unsigned long start_addr, unsigned long end_addr, unsig
  * Input: puf_addr
  *
 **/
-static void puf_read_brc(unsigned long start_addr, unsigned long end_addr)
+void puf_read_brc(unsigned long start_addr, unsigned long end_addr)
 {
 	unsigned int puf_read_val=0;
 	unsigned long addr;
@@ -446,7 +455,7 @@ static void puf_read_brc(unsigned long start_addr, unsigned long end_addr)
  *
  * Input: puf_start_address, puf_end address, puf_init_value, decay_time
 **/
-static void puf_extract_all(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value, int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq, bool to_stdout)
+uint32_t puf_extract_all(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value, int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
 {
 	/* PUF Init */
 	puf_init_all(start_addr,end_addr,puf_init_value);
@@ -458,16 +467,43 @@ static void puf_extract_all(unsigned long start_addr,unsigned long end_addr, uns
 	SD_SA = 0x00003395;
 	// printf("SD_SA:value=0x%08X--address=0x%08X\n",SD_SA,&(SD_SA));
 	if(func_loc)
-		ManuallyRefresh(decay_time, dcy_func, nfreq);
+		ManuallyRefresh(decay_time, dcy_func, nfreq, true);
 	else
-		ManuallyRefresh(decay_time, 0, 0);
+		ManuallyRefresh(decay_time, 0, 0, true);
 	printf("decay completed\n");
 
 	/* Enable Refresh */
-	timing_init();
+	timing_init(true);
 
 	/* PUF Read */
-	puf_read_all(start_addr, end_addr, add_mode, to_stdout);
+	return puf_read_all(start_addr, end_addr, add_mode);
+}
+
+/** 
+ * Function: Test puf of contiguous address segment (return puf value)
+ *
+ * Input: puf_start_address, puf_end address, puf_init_value, decay_time
+**/
+uint32_t puf_mem_dmp(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value, int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
+{
+	/* PUF Init */
+	puf_init_all(start_addr,end_addr,puf_init_value);
+	//printf("puf init complete\n");
+
+	/* Decay & Manually Refresh */ 
+	//printf("disable Refresh\n");
+	SD_SA = 0x00003395;
+	if(func_loc)
+		ManuallyRefresh(decay_time, dcy_func, nfreq, false);
+	else
+		ManuallyRefresh(decay_time, 0, 0, false);
+	//printf("decay completed\n");
+
+	/* Enable Refresh */
+	timing_init(false);
+
+	/* PUF Read */
+	return puf_count_cells(start_addr, end_addr);
 }
 
 /** 
@@ -475,7 +511,7 @@ static void puf_extract_all(unsigned long start_addr,unsigned long end_addr, uns
  *
  * Input: puf_start_address, puf_end address, puf_init_value, decay_time
 **/
-static void puf_extracted(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value, int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
+void puf_extracted(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value, int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
 {
 	/* PUF Init */
 	puf_init_all(start_addr,end_addr,puf_init_value);
@@ -487,13 +523,13 @@ static void puf_extracted(unsigned long start_addr,unsigned long end_addr, unsig
 	SD_SA = 0x00003395;
 	// printf("SD_SA:value=0x%08X--address=0x%08X\n",SD_SA,&(SD_SA));
 	if(func_loc)
-		ManuallyRefresh(decay_time, dcy_func, nfreq);
+		ManuallyRefresh(decay_time, dcy_func, nfreq, true);
 	else
-		ManuallyRefresh(decay_time, 0, 0);
+		ManuallyRefresh(decay_time, 0, 0, true);
 	printf("decay completed\n");
 
 	/* Enable Refresh */
-	timing_init();
+	timing_init(true);
 
 	/* PUF Read */
 	puf_read_ext(start_addr, end_addr, add_mode);
@@ -505,7 +541,7 @@ static void puf_extracted(unsigned long start_addr,unsigned long end_addr, unsig
  *
  * Input: puf_start_address, puf_end address, puf_init_value, decay_time
 **/
-static void puf_extract_brc(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value, int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
+void puf_extract_brc(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value, int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
 {
 
 	/* PUF Init */
@@ -518,13 +554,13 @@ static void puf_extract_brc(unsigned long start_addr,unsigned long end_addr, uns
 	SD_SA = 0x00003395;
 	// printf("SD_SA:value=0x%08X--address=0x%08X\n",SD_SA,&(SD_SA));
 	if(func_loc)
-		ManuallyRefresh(decay_time, dcy_func, nfreq);
+		ManuallyRefresh(decay_time, dcy_func, nfreq, true);
 	else
-		ManuallyRefresh(decay_time, 0, 0);
+		ManuallyRefresh(decay_time, 0, 0, true);
 	printf("decay completed\n");
 
 	/* Enable Refresh */
-	timing_init();
+	timing_init(true);
 
 	/* PUF Read */
 	puf_read_brc(start_addr, end_addr);
@@ -538,7 +574,7 @@ static void puf_extract_brc(unsigned long start_addr,unsigned long end_addr, uns
  *
  * P.S. Test one row for each interval
 **/
-static void puf_extract_itvl(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value,int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
+void puf_extract_itvl(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value,int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
 {
 	/* PUF Init */
 	puf_init_all(start_addr,end_addr,puf_init_value);
@@ -550,13 +586,13 @@ static void puf_extract_itvl(unsigned long start_addr,unsigned long end_addr, un
 	SD_SA = 0x00003395;
 	// printf("SD_SA:value=0x%08X--address=0x%08X\n",SD_SA,&(SD_SA));
 	if(func_loc)
-		ManuallyRefresh(decay_time, dcy_func, nfreq);
+		ManuallyRefresh(decay_time, dcy_func, nfreq, true);
 	else
-		ManuallyRefresh(decay_time, 0, 0);
+		ManuallyRefresh(decay_time, 0, 0, true);
 	printf("decay completed\n");
 
 	/* Enable Refresh */
-	timing_init();
+	timing_init(true);
 
 	/* PUF Read (on GPU)*/
 	puf_read_itvl(start_addr, end_addr, add_mode);

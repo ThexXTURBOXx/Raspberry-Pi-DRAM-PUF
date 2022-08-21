@@ -1,4 +1,4 @@
 #pragma once
 
-void sdram_init(void);
-void timing_init(void);
+void sdram_init(bool);
+void timing_init(bool);

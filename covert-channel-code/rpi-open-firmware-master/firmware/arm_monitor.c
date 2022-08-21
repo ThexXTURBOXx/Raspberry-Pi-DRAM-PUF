@@ -27,9 +27,6 @@ First stage monitor.
 #include "getpuf/GetPuf.c"
 
 #define logf(fmt, ...) printf("[SDRAM:%s]: " fmt, __FUNCTION__, ##__VA_ARGS__);
-#define PUF_START_SIGNAL       0x2800000U
-#define PUF_WRITTEN_SIGNAL     0x2800004U
-#define PUF_RESULT             0x2800008U
 #define PUF_PARAM_LOAD_ADDRESS 0x4000000U
 
 struct tagged_packet {
@@ -60,8 +57,13 @@ bool handle_property_tag(struct tagged_packet *packet) {
   return true;
 }
 
-unsigned int addmode, mode, funcloc, dcyfunc, nfreq;
-unsigned int stradd, endadd, initvalue, decaytime, max_measures;
+void mailbox_write(uint32_t v) {
+	while (ARM_1_MAIL0_STA & ARM_MS_FULL);
+	ARM_1_MAIL0_WRT = v;
+}
+
+volatile unsigned int addmode, mode, funcloc, dcyfunc, nfreq;
+volatile unsigned int stradd, endadd, initvalue, decaytime, max_measures;
 
 int getmode(uint32_t msg)
 {
@@ -178,12 +180,13 @@ void get_decay_time(uint32_t msg)
 	printf("\ndecaytime = %d s\n\n",decaytime);
 }
 
-int modet=0;
+volatile int modet=0,pass=0;
+volatile uint32_t curr_size=0;
 void execute_puf(uint32_t msg)
 {
 	if (modet==0)
 	{
-		puf_extract_all(stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq, true);
+		puf_extract_all(stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);
 	}
 	else if (modet==1)
 	{
@@ -203,19 +206,21 @@ void execute_puf(uint32_t msg)
 	}
 	else if (modet==5)
 	{
+		if (pass >= 12) return;
 		// Start PUFs from params
 		volatile uint8_t *puf_params = (volatile uint8_t*) PUF_PARAM_LOAD_ADDRESS;
-		puf_extract_all(0xC4000000, 0xC5000000, 0x12345678, 5, 0, 0, 0, 0, false);
+		curr_size = puf_mem_dmp(0xC4000000, 0xC4001000, 0x12345678, 10, 0, 0, 0, 0);
+		mailbox_write(curr_size);
 	}
 }
 
 #define PUF_ARGS_AMT 9
-int time=0;
+volatile int time=0;
 /**
  * flag_m: Mark workmode_set_status
  * flag_mm: Mark puf_extract_status
 **/
-bool flag_m=0,flag_mm=0,puf_param_mode=0;
+volatile bool flag_m=0,flag_mm=0,puf_param_mode=0;
 void get_puf_param(uint32_t msg)
 {
 	// Respond to kernel
@@ -388,19 +393,31 @@ void arm_monitor_interrupt() {
       msg,
       ARM_1_MAIL1_CNF);*/
 
-  if (msg == 0x12345678) {
-	// Magic number received; enter param mode
-	time = 0;
-	flag_m = 0;
-	flag_mm = 0;
-	modet = 0;
-	puf_param_mode = true;
+  if (msg == 0xf2345678) {
+	// Magic number received
+	if (modet == 5) {
+		++pass;
+		execute_puf(msg);
+	} else {
+		time = 0;
+		flag_m = 0;
+		flag_mm = 0;
+		modet = 0;
+		curr_size = 0;
+		puf_param_mode = true;
+	}
 	return;
   }
 
   if (puf_param_mode) {
 	// Treat all interrupts as params
 	get_puf_param(msg);
+	return;
+  }
+
+  if (curr_size) {
+	volatile uint32_t *puf_result = (volatile uint32_t*) 0xC4000000; // TODO: start adress
+	mailbox_write(puf_result[msg]);
 	return;
   }
 
