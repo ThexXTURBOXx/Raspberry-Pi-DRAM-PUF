@@ -191,7 +191,8 @@ struct BCM2708SDHost : BlockDevice {
     logf("pinmux configured for aux0\n");
   }
 
-  void reset() {
+  // equiv to reset_internal
+  void reset(struct sdhost_state *host) {
     logf("resetting controller ...\n");
     set_power(false);
 
@@ -218,6 +219,9 @@ struct BCM2708SDHost : BlockDevice {
 
     udelay(300);
     mfence();
+    host->clock = 0;
+    SH_HCFG = host->hcfg;
+    SH_CDIV = host->cdiv;
   }
 
   inline void get_response() {
@@ -588,7 +592,7 @@ printf("\n");
     return true;
   }
 
-  void restart_controller() {
+  void restart_controller(struct sdhost_state *host) {
     is_sdhc = false;
 
     logf("hcfg 0x%lX, cdiv 0x%lX, edm 0x%lX, hsts 0x%lX\n",
@@ -600,10 +604,21 @@ printf("\n");
     logf("Restarting the eMMC controller ...\n");
 
     configure_pinmux();
-    reset();
+    // equiv to add_host
+    host->hcfg = SH_HCFG_BUSY_IRPT_EN_SET;
+    // equiv to add_host end
 
-    SH_HCFG &= ~SH_HCFG_WIDE_EXT_BUS_SET;
-    SH_HCFG = SH_HCFG_SLOW_CARD_SET | SH_HCFG_WIDE_INT_BUS_SET;
+    reset(host);
+
+    // equiv to set_ios
+    host->hcfg &= ~SH_HCFG_WIDE_EXT_BUS_SET;
+    host->hcfg |= SH_HCFG_WIDE_INT_BUS_SET;
+
+    /* Disable clever clock switching, to cope with fast core clocks */
+    host->hcfg |= SH_HCFG_SLOW_CARD_SET;
+    SH_HCFG = host->hcfg;
+    // equiv to set_ios end
+
     SH_CDIV = kIdentSafeClockRate;
 
     udelay(300);
@@ -659,7 +674,7 @@ printf("\n");
   }
 
   BCM2708SDHost() {
-    restart_controller();
+    restart_controller(&host);
     logf("eMMC driver sucessfully started!\n");
   }
 
@@ -1374,7 +1389,7 @@ printf("\n");
     if (/*!mmc_host_is_spi(mmc) &&*/ blkcnt > 1) {
       cmd.cmdidx = MMC_CMD_STOP_TRANSMISSION;
       cmd.cmdarg = 0;
-      cmd.resp_type = MMC_RSP_R1; // TODO: According to u-boot, this should be MMC_RSP_R1b... But then we have an infinite loop???
+      cmd.resp_type = MMC_RSP_R1b;
       if (mmc_send_cmd(&cmd, NULL)) {
         printf("mmc fail to send stop cmd\n");
         return 0;

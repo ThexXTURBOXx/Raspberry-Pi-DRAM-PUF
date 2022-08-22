@@ -435,7 +435,7 @@ void arm_monitor_interrupt() {
   }
 
   if (curr_size) {
-	volatile uint32_t *puf_result = (volatile uint32_t*) stradd; // TODO: start adress
+	volatile uint32_t *puf_result = (volatile uint32_t*) stradd; // TODO: start address
 	mailbox_write(puf_result[msg]);
 	return;
   }

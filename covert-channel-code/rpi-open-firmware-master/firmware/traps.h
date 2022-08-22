@@ -16,6 +16,7 @@ void fleh_icache();
 void fleh_veccore();
 void fleh_badl2alias();
 void fleh_breakpoint();
+void fleh_ignore();
 void fleh_unknown();
 void fleh_irq();
 void print_vpu_state(vc4_saved_state_t* pcb);

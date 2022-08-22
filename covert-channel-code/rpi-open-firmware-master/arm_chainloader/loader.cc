@@ -42,8 +42,8 @@ FATFS g_BootVolumeFs;
 #define DTB_LOAD_ADDRESS       0xF000000 // 240 mb from start
 #define KERNEL_LOAD_ADDRESS    0x2000000 // 32 mb from start
 #define INITRD_LOAD_ADDRESS    0x4100000 // 64.x mb from start
-#define PUF_RESULT             0x2800000U
-#define PUF_PARAM_LOAD_ADDRESS 0x4000000U
+#define PUF_RESULT             0x2000000 // Yes, we just override the kernel here
+#define PUF_PARAM_LOAD_ADDRESS 0x4000000
 
 typedef void __attribute__((noreturn)) (*linux_t)(uint32_t, uint32_t, void*);
 
@@ -215,17 +215,17 @@ struct LoaderImpl {
 
         const int stradd = getaddress(puf_params, '\t');
         mailbox_write(stradd);
-        printf("0x%x,", stradd);
+        printf("0x%08x,", stradd);
         delay_ms(50);
 
         const int endadd = getaddress(puf_params, '\t');
         mailbox_write(endadd);
-        printf("0x%x,", endadd);
+        printf("0x%08x,", endadd);
         delay_ms(50);
 
         const int initval = getinitvalue(puf_params, '\t');
         mailbox_write(initval);
-        printf("0x%x,", initval);
+        printf("0x%08x,", initval);
         delay_ms(50);
 
         const int decaytime = getdecaytime(puf_params, '\t');

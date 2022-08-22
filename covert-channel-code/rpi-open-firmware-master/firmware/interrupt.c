@@ -39,6 +39,10 @@ void setup_irq_handlers() {
     vectorTable[i] = fleh_irq;
   }
 
+  // Ignore SDHost IRQs
+  vectorTable[57-32] = fleh_ignore;
+  vectorTable[56-32] = fleh_ignore;
+
   // enable all irq's on core 0
   // disable all irq's on core 1
   for (int i=0; i<64; ++i) {

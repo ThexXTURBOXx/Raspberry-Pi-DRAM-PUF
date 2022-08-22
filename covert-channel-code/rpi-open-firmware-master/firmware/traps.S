@@ -22,6 +22,10 @@ fleh_\label:
 .endm
 
 .text
+.global fleh_ignore
+fleh_ignore:
+  rti
+
 irq_fatal:
   SaveRegsUpper
   mov r0, sp
