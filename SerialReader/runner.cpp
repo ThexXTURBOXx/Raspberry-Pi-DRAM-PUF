@@ -127,7 +127,6 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
         }
     });
 #endif
-// TODO: If no response for quite some time, restart measurement
     while (!interrupt) {
         if (i >= num_bytes) {
             i = 0;

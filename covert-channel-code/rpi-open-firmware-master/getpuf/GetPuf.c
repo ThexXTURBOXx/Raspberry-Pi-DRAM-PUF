@@ -266,7 +266,6 @@ static void puf_read_itvl(unsigned long start_addr, unsigned long end_addr, unsi
 				    col=(0x00000ffc&addr)>>2;				//calculate the number of column
 				}
 
-
 				/* calculate the number of bit-flip in one cell */
 				puf_read_val=mmio_read32(addr);
 				unsigned int sum_flip=cal(puf_read_val);
@@ -322,7 +321,6 @@ static void puf_read_all(unsigned long start_addr, unsigned long end_addr, unsig
 	    	break;
 		else if((addr>=0xC3000000&&addr<0xCf000000)||(addr>=0xD0000000&&addr<0xE0000000))
 		{
-			/* calculate the number of bit-flip in one cell */
 			++puf_cell;
 			puf_read_val=mmio_read32(addr);
 			printfBinary("%c%c%c%c", (unsigned char)(puf_read_val>>24),
@@ -334,6 +332,7 @@ static void puf_read_all(unsigned long start_addr, unsigned long end_addr, unsig
     printf("|&%d|$\n",puf_cell);
     delay_ms(100);
 }
+
 /**
  * Description: Read the value of puf of one cell to 
  * the specified address segment

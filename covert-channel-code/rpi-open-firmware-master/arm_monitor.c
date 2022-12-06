@@ -116,12 +116,18 @@ void cpu_code()
 void itvl_start_address()
 {
 	stradd=ARM_1_MAIL1_RD;
+	if (stradd < 0xC3000000 || stradd > 0xDFFFFFFF) {
+		panic("Address must be between C3000000 and DFFFFFFF");
+	}
 	printf("\nPUF start address = 0x%08X\n\n",stradd);
 }
 
 void itvl_end_address()
 {
 	endadd=ARM_1_MAIL1_RD;
+	if (endadd < 0xC3000000 || endadd > 0xDFFFFFFF) {
+		panic("Address must be between C3000000 and DFFFFFFF");
+	}
 	printf("\nPUF end address = 0x%08X\n\n",endadd);
 }
 
@@ -147,12 +153,18 @@ void itvl_getdecaytime()
 void all_start_address()
 {
 	stradd=ARM_1_MAIL1_RD;
+	if (stradd < 0xC3000000 || stradd > 0xDFFFFFFF) {
+		panic("Address must be between C3000000 and DFFFFFFF");
+	}
 	printf("\nPUF start address = 0x%08X\n\n",stradd);
 }
 
 void all_end_address()
 {
 	endadd=ARM_1_MAIL1_RD;
+	if (endadd < 0xC3000000 || endadd > 0xDFFFFFFF) {
+		panic("Address must be between C3000000 and DFFFFFFF");
+	}
 	printf("\nPUF end address = 0x%08X\n\n",endadd);
 }
 

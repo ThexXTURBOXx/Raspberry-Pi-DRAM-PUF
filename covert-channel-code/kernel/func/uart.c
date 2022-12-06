@@ -79,22 +79,20 @@ void uart_puts(const char* str)
         uart_putc((unsigned char)str[i]);
 }
 
+// UART input timeout in seconds
+#define TIMEOUT_S 60*10
+
 // UART gets an input character from the input device
 unsigned char uart_getc()
 {
+	// Store start time
+    uint32_t start = ST_CLO;
     // Wait for UART to have received something.
-    while ( mmio_read(UART0_FR) & (1 << 4) ) { }
-    return mmio_read(UART0_DR);
-}
-
-unsigned char mode_getc()
-{
-    // Wait for UART to have received something.
-    while ( (mmio_read(UART0_FR) & (1 << 4)) )
-    {
-    	uart_init();
-    	delay_ms(500);
-    	// uart_puts("uart_init\n");
-    }
+    while ( mmio_read(UART0_FR) & (1 << 4) ) {
+        if ((ST_CLO - start) > (TIMEOUT_S*1000000)) {
+			uart_puts("PANIC: No input for quite some time$&\n");
+			return 0;
+		}
+	}
     return mmio_read(UART0_DR);
 }
