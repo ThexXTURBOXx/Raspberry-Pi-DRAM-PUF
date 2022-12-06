@@ -20,12 +20,20 @@ extern "C" {
 #endif
 
 int putchar (int c);
+int putcharBinary (int c);
 int puts (const char* str);
 int printf (const char* fmt, ...) __attribute__ ((format (printf, 1, 2)));
+int printfBinary (const char* fmt, ...) __attribute__ ((format (printfBinary, 1, 2)));
 void put_dump (const void* buff, unsigned long addr, int len, int width);
 
 
 int vprintf (
+	const char*	fmt,	/* Pointer to the format string */
+	va_list arp			/* Pointer to arguments */
+);
+
+
+int vprintfBinary (
 	const char*	fmt,	/* Pointer to the format string */
 	va_list arp			/* Pointer to arguments */
 );

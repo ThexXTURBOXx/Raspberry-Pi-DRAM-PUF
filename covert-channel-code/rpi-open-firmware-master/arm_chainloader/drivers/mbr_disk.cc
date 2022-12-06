@@ -53,7 +53,7 @@ struct Mbr {
 	uint16_t	 mbr_code[223];
 	MbrPartition mbr_part[4];
 	uint16_t	 mbr_sig;
-} __attribute__((packed));
+} __attribute__((packed)) __attribute__ ((aligned (4)));
 
 static_assert(sizeof(Mbr) >= 512, "What the fuck");
 

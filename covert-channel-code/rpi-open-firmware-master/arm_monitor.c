@@ -24,7 +24,7 @@ First stage monitor.
 
 #define logf(fmt, ...) printf("[SDRAM:%s]: " fmt, __FUNCTION__, ##__VA_ARGS__);
 
-unsigned int addmode, safemode, bank, row, col, mode, address, funcloc, dcyfunc, nfreq;
+unsigned int addmode, bank, row, col, mode, address, funcloc, dcyfunc, nfreq;
 unsigned int stradd, endadd, initvalue, pufsize, decaytime, cputemp, interval;
 
 int getmode()
@@ -55,15 +55,6 @@ void get_address_mode()
 		printf("\nAddress Mode = BRC\n\n");
 	else
 		printf("\nAddress Mode = RBC\n\n");
-}
-
-void get_safe_mode()
-{
-    safemode=ARM_1_MAIL1_RD;
-    if(safemode==0)
-        printf("\nSafe Mode = Off\n\n");
-    else
-        printf("\nSafe Mode = On\n\n");
 }
 
 void get_func_loc()
@@ -175,7 +166,7 @@ void all_getdecaytime()
 {
 	decaytime=ARM_1_MAIL1_RD;
 	printf("\ndecaytime = %d s\n\n",decaytime);
-	puf_extract_all(safemode, stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);
+	puf_extract_all(stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);
 }
 
 void ext_getdecaytime()

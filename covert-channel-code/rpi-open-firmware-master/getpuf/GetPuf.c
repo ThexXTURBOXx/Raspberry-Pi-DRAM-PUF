@@ -295,13 +295,14 @@ static void puf_read_itvl(unsigned long start_addr, unsigned long end_addr, unsi
  * Input: puf_addr
  *
 **/
-static void puf_read_all(int safe_mode, unsigned long start_addr, unsigned long end_addr, unsigned int add_mode)
+static void puf_read_all(unsigned long start_addr, unsigned long end_addr, unsigned int add_mode)
 {
+	putchar(0x16); // SYN
+	putchar(0x16); // SYN
+	putchar(0x16); // SYN
     printf("&|");
-	unsigned int puf_read_val=0;
-	unsigned long addr;
-	unsigned long puf_cell=0;
-    unsigned long bank, row, col;
+	uint32_t puf_read_val=0, puf_cell=0;
+	unsigned long addr, bank, row, col;
     if(add_mode==0)
     {
         bank=(0x1c000000&start_addr)>>26;				//calculate the number of bank
@@ -322,23 +323,15 @@ static void puf_read_all(int safe_mode, unsigned long start_addr, unsigned long 
 		else if((addr>=0xC3000000&&addr<0xCf000000)||(addr>=0xD0000000&&addr<0xE0000000))
 		{
 			/* calculate the number of bit-flip in one cell */
+			++puf_cell;
 			puf_read_val=mmio_read32(addr);
-			if (safe_mode && puf_read_val == 0) {
-			    puf_read_val = 0xff;
-			}
-			//unsigned int sum_flip=cal(puf_read_val);
-			//if(sum_flip!=0)
-			//{
-                puf_cell++;
-				printf("%c%c%c%c", (unsigned char)(puf_read_val>>24),
-				                   (unsigned char)(puf_read_val>>16),
-								   (unsigned char)(puf_read_val>>8),
-								   (unsigned char)puf_read_val);
-			//}
+			printfBinary("%c%c%c%c", (unsigned char)(puf_read_val>>24),
+							   (unsigned char)(puf_read_val>>16),
+							   (unsigned char)(puf_read_val>>8),
+							   (unsigned char)puf_read_val);
 		}
 	}
-    printf("|&\n");
-    printf("puf_cell=%d|$\n",puf_cell);
+    printf("|&%d|$\n",puf_cell);
     delay_ms(100);
 }
 /**
@@ -384,8 +377,7 @@ static void puf_read_ext(unsigned long start_addr, unsigned long end_addr, unsig
             got_val=1;
 		}
 	}
-	printf("|&\n");
-	printf("puf_cell=%d\n",puf_cell);
+	printf("|&%d\n",puf_cell);
 	delay_ms(100);
 }
 
@@ -429,7 +421,7 @@ static void puf_read_brc(unsigned long start_addr, unsigned long end_addr)
  *
  * Input: puf_start_address, puf_end address, puf_init_value, decay_time
 **/
-static void puf_extract_all(int safe_mode, unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value, int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
+static void puf_extract_all(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value, int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
 {
 	/* PUF Init */
 	puf_init_all(start_addr,end_addr,puf_init_value);
@@ -450,7 +442,7 @@ static void puf_extract_all(int safe_mode, unsigned long start_addr,unsigned lon
 	timing_init();
 
 	/* PUF Read */
-	puf_read_all(safe_mode, start_addr, end_addr, add_mode);
+	puf_read_all(start_addr, end_addr, add_mode);
 }
 
 /** 

@@ -1,7 +1,0 @@
---- arm_chainloader/drivers/uart.c	2019-02-05 04:30:29.000000000 +0800
-+++ arm_chainloader/drivers/uart.c	2018-03-28 19:52:14.000000000 +0800
-@@ -9,3 +9,4 @@ void uart_putc(unsigned int ch)
-      while(mmio_read32(UART_FR) & 0x20);
-      mmio_write32(UART_DR, ch);
- }
-+

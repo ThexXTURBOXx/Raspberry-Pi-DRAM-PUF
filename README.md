@@ -11,11 +11,11 @@
 7. Run the following commands (Replace TARGET_FOLDER with the desired target folder for your installation):
 ```shell
 cd TARGET_FOLDER
-sudo apt update && sudo apt dist-upgrade -y
+sudo apt update && sudo apt full-upgrade -y
 sudo apt install git minicom -y
-wget https://project-downloads.drogon.net/wiringpi-latest.deb
-sudo apt install ./wiringpi-latest.deb -y
-rm ./wiringpi-latest.deb
+wget https://github.com/WiringPi/WiringPi/releases/download/2.61-1/wiringpi-2.61-1-armhf.deb
+sudo apt install ./wiringpi-2.61-1-armhf.deb -y
+rm ./wiringpi-2.61-1-armhf.deb
 git clone https://github.com/Taywee/args.git
 cd args
 sudo make install DESTDIR=/usr

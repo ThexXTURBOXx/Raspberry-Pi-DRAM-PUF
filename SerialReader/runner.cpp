@@ -13,6 +13,7 @@ void SerialReader::run(Parser &parser) {
     Runner runner(parser.getSerialPort().c_str(), parser.getUSBPort(), parser.getBaudRate());
     bool running = true;
     int count = 0;
+    runner.reset(parser);
     while (running) {
         std::ofstream output(parser.getOutPrefix() + std::to_string(count) + ".bin");
         running = runner.loop(parser, output, count);
@@ -72,6 +73,7 @@ void SerialReader::run(Parser &parser, std::ostream &output) {
     Runner runner(parser.getSerialPort().c_str(), parser.getUSBPort(), parser.getBaudRate());
     bool running = true;
     int count = 0;
+    runner.reset(parser);
     while (running && count == 0) {
         running = runner.loop(parser, output, count);
     }
@@ -91,15 +93,17 @@ SerialReader::Runner::Runner(const char *port, int usb, int baud) : fd(serialOpe
 #endif
 }
 
-bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count) {
-    bool running = true;
-    count++;
+void SerialReader::Runner::reset(Parser &parser) {
     log_data("Cutting off USB Power...", log);
     digitalWrite(parser.getUSBPort(), HIGH);
     std::this_thread::sleep_for(std::chrono::seconds(parser.getUSBSleepTime()));
     log_data("Turning on USB Power...", log);
     digitalWrite(parser.getUSBPort(), LOW);
-    log_data("Starting " + std::to_string(count) + "th measurement...", log);
+}
+
+bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count) {
+    bool running = true;
+    //log_data("Starting measurement...", log);
     char lastChar = ' ';
     bool write = false;
     volatile bool interrupt = false;
@@ -120,14 +124,11 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
         }
     });
 #endif
+// TODO: If no response for quite some time, restart measurement
     while (!interrupt) {
         int c = serialGetchar(fd);
         if (c == -1)
             continue;
-        // Use this for safe mode:
-		// if (c == 0xff) {
-        //     c = 0;
-        // }
         char in = static_cast<char>(c);
         if (!write) {
             if ((c < 32 || c > 126) && c != 10 && c != 13) {
@@ -143,9 +144,12 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
         sign += in;
         if (START == sign) {
             write = true;
-            input->join();
-            delete input;
+            if (input != nullptr) {
+                input->join();
+                delete input;
+            }
         } else if (END == sign) {
+            ++count;
             write = false;
             log_data(std::to_string(charCount) + " bytes in total written.", log);
             output.flush();
@@ -175,7 +179,6 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
         } else if (FINISHED == sign) {
             interrupt = true;
         } else if (PANIC == sign) {
-            count--;
             interrupt = true;
             output.flush();
             if (auto *o = dynamic_cast<std::ofstream *>(&output)) {
@@ -184,7 +187,7 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
         }
         lastChar = in;
         if (write) {
-            charCount++;
+            ++charCount;
             if (charCount % 1000 == 0) {
                 std::cout << '\r' << charCount << " bytes written." << std::flush;
 				output.flush();

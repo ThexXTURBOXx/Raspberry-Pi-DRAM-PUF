@@ -44,7 +44,7 @@ void kernel_main(uint32_t r0, uint32_t r1, uint32_t atags) {
 
     uart_init();
     uart_putc(0x16);
-    uart_puts("$|Choose mode:\r\n 0: test all addresses (bit)\r\n 1: test all addresses (cell)\r\n 2: test all addresses (bitflip summary)\r\n 3: extract at interval\r\n 4: custom set test|: ");
+    uart_puts("$|Choose mode:\r\n 0: memory dump (bit)\r\n 1: test all addresses (cell)\r\n 2: test all addresses (bitflip summary)\r\n 3: extract at interval\r\n 4: custom set test|: ");
     int input = getmode();
     switch(input) {
         case 0:
@@ -77,5 +77,6 @@ void kernel_main(uint32_t r0, uint32_t r1, uint32_t atags) {
             TestPuf();
             break;
     }
+    while (1) { /* wait */ }
     uart_putc(0x18);
 }

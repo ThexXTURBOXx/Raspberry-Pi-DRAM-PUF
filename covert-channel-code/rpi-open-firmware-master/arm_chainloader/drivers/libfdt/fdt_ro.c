@@ -10,6 +10,9 @@
 
 #include "libfdt_internal.h"
 
+/* not in string.h? */
+extern size_t strnlen(const char *s, size_t maxlen);
+
 static int fdt_nodename_eq_(const void *fdt, int offset,
 			    const char *s, int len)
 {

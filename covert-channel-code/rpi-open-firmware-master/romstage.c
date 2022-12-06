@@ -49,14 +49,21 @@ void uart_init(void) {
 	udelay(150);
 	GP_PUDCLK0 = 0;
 
-	CM_UARTDIV = CM_PASSWORD | 0x6666;
+	CM_UARTDIV = CM_PASSWORD | 0x6666; // ~3 MHz
 	CM_UARTCTL = CM_PASSWORD | CM_SRC_OSC | CM_UARTCTL_FRAC_SET | CM_UARTCTL_ENAB_SET;
 
-	mmio_write32(UART_ICR, 0x7FF);
+	mmio_write32(UART_ICR, 0x7FF); // Enables all
+
+	// https://developer.arm.com/documentation/ddi0183/g/programmers-model/register-descriptions/fractional-baud-rate-register--uartfbrd
+	// BRD = (3*10^6) / (16*115200) = 1.62760416667
+	// FBRD = floor((0.62760416667*64) + 0.5) = 40
+	// Generated BRD = IBRD + FBRD/64 = 1.625
+	// Generated Baud Rate = (3*10^6) / (16*1.625) = 115384.615385
 	mmio_write32(UART_IBRD, 1);
 	mmio_write32(UART_FBRD, 40);
-	mmio_write32(UART_LCRH, 0x70);
-	mmio_write32(UART_CR, 0x301);
+
+	mmio_write32(UART_LCRH, 0x70); // WLEN_8 | FEN
+	mmio_write32(UART_CR, 0x301); // RXE | TXE | UARTEN
 }
 
 void switch_vpu_to_pllc() {
@@ -141,6 +148,8 @@ int _main(unsigned int cpuid, unsigned int load_address) {
 	IC1_VADDR = 0x1B000;
 
 	__asm__ volatile("ei");
+
+	putchar(0x16); // SYN
 
 	printf(
 	    "Booting Raspberry Pi....\n"
