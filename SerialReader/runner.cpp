@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <wiringSerial.h>
 #include <wiringPi.h>
+#include <termios.h>
 #include "parser.h"
 #include "runner.h"
 #include "logger.h"
@@ -13,9 +14,9 @@ void SerialReader::run(Parser &parser) {
     Runner runner(parser.getSerialPort().c_str(), parser.getUSBPort(), parser.getBaudRate());
     bool running = true;
     int count = 0;
-    runner.reset(parser);
     while (running) {
         std::ofstream output(parser.getOutPrefix() + std::to_string(count) + ".bin");
+        runner.reset(parser);
         running = runner.loop(parser, output, count);
     }
 }
@@ -73,8 +74,8 @@ void SerialReader::run(Parser &parser, std::ostream &output) {
     Runner runner(parser.getSerialPort().c_str(), parser.getUSBPort(), parser.getBaudRate());
     bool running = true;
     int count = 0;
-    runner.reset(parser);
     while (running && count == 0) {
+        runner.reset(parser);
         running = runner.loop(parser, output, count);
     }
 }
@@ -104,7 +105,9 @@ void SerialReader::Runner::reset(Parser &parser) {
 bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count) {
     bool running = true;
     //log_data("Starting measurement...", log);
-    char lastChar = ' ';
+    char lastChar = ' ', in = ' ';
+    int num_bytes = 0, i = 0;
+    char read_buf[BUFFER_SIZE];
     bool write = false;
     volatile bool interrupt = false;
     int charCount = 0;
@@ -126,29 +129,31 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
 #endif
 // TODO: If no response for quite some time, restart measurement
     while (!interrupt) {
-        int c = serialGetchar(fd);
-        if (c == -1)
-            continue;
-        char in = static_cast<char>(c);
+        if (i >= num_bytes) {
+            i = 0;
+            num_bytes = read(fd, &read_buf, BUFFER_SIZE);
+            if (num_bytes <= 0) continue;
+        }
+        in = read_buf[i];
+        ++i;
+
         if (!write) {
-            if ((c < 32 || c > 126) && c != 10 && c != 13) {
+            if ((in < 32 || in > 126) && in != 10 && in != 13) {
                 log_live(" ", log);
             } else {
                 log_live(in, log);
             }
         }
-        if (write && c != '|' && c != '&') {
+        if (write && in != '|' && in != '&') {
             output << in;
         }
-        std::string sign(1, lastChar);
-        sign += in;
-        if (START == sign) {
+        if (START_1 == lastChar && START_2 == in) {
             write = true;
             if (input != nullptr) {
                 input->join();
                 delete input;
             }
-        } else if (END == sign) {
+        } else if (END_1 == lastChar && END_2 == in) {
             ++count;
             write = false;
             log_data(std::to_string(charCount) + " bytes in total written.", log);
@@ -159,7 +164,7 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
             if (parser.getMaxMeasures() > 0 && count >= parser.getMaxMeasures()) {
                 running = false;
             }
-        } else if (LOADED == sign) {
+        } else if (LOADED_1 == lastChar && LOADED_2 == in) {
             input = new std::thread([this, &parser] {
                 for (auto &param : parser.getParams()) {
                     while (!expectInput) { /* wait */ }
@@ -174,11 +179,11 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
                     serialFlush(fd);
                 }
             });
-        } else if (ASK_INPUT == sign) {
+        } else if (ASK_INPUT_1 == lastChar && ASK_INPUT_2 == in) {
             expectInput = true;
-        } else if (FINISHED == sign) {
+        } else if (FINISHED_1 == lastChar && FINISHED_2 == in) {
             interrupt = true;
-        } else if (PANIC == sign) {
+        } else if (PANIC_1 == lastChar && PANIC_2 == in) {
             interrupt = true;
             output.flush();
             if (auto *o = dynamic_cast<std::ofstream *>(&output)) {
@@ -188,7 +193,7 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
         lastChar = in;
         if (write) {
             ++charCount;
-            if (charCount % 1000 == 0) {
+            if (charCount % FLUSH_INTERVAL == 0) {
                 std::cout << '\r' << charCount << " bytes written." << std::flush;
 				output.flush();
             }

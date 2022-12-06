@@ -1,6 +1,9 @@
 #ifndef SERIALREADER_RUNNER_H
 #define SERIALREADER_RUNNER_H
 
+#define FLUSH_INTERVAL 10000
+#define BUFFER_SIZE 1024
+
 #include <fstream>
 
 namespace SerialReader {
@@ -15,12 +18,18 @@ namespace SerialReader {
 
         std::ofstream log;
 
-        const std::string LOADED = "$|";
-        const std::string ASK_INPUT = "|:";
-        const std::string FINISHED = "|$";
-        const std::string START = "&|";
-        const std::string END = "|&";
-        const std::string PANIC = "$&";
+        const char LOADED_1 = '$';
+        const char LOADED_2 = '|';
+        const char ASK_INPUT_1 = '|';
+        const char ASK_INPUT_2 = ':';
+        const char FINISHED_1 = '|';
+        const char FINISHED_2 = '$';
+        const char START_1 = '&';
+        const char START_2 = '|';
+        const char END_1 = '|';
+        const char END_2 = '&';
+        const char PANIC_1 = '$';
+        const char PANIC_2 = '&';
 
     public:
         Runner(const char *port, int usb, int baud);
