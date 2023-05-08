@@ -15,9 +15,9 @@ void SerialReader::run(Parser &parser) {
     bool running = true;
     int count = 0;
     while (running) {
-        std::ofstream output(parser.getOutPrefix() + std::to_string(count) + ".bin");
+        std::ofstream pufOutput(parser.getOutPrefix() + std::to_string(count) + ".bin");
         runner.reset(parser);
-        running = runner.loop(parser, output, count);
+        running = runner.loop(parser, pufOutput, count);
     }
 }
 
@@ -70,13 +70,13 @@ char *gen_key(const char *_serialPort, int baud, int rpi_power_port, int sleep,
 
 #pragma clang diagnostic pop
 
-void SerialReader::run(Parser &parser, std::ostream &output) {
+void SerialReader::run(Parser &parser, std::ostream &pufOutput) {
     Runner runner(parser.getSerialPort().c_str(), parser.getUSBPort(), parser.getBaudRate());
     bool running = true;
     int count = 0;
     while (running && count == 0) {
         runner.reset(parser);
-        running = runner.loop(parser, output, count);
+        running = runner.loop(parser, pufOutput, count);
     }
 }
 
@@ -102,13 +102,13 @@ void SerialReader::Runner::reset(Parser &parser) {
     digitalWrite(parser.getUSBPort(), LOW);
 }
 
-bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count) {
+bool SerialReader::Runner::loop(Parser &parser, std::ostream &pufOutput, int &count) {
     bool running = true;
     //log_data("Starting measurement...", log);
     char lastChar = ' ', in = ' ';
-    int num_bytes = 0, i = 0;
-    char read_buf[BUFFER_SIZE];
-    bool write = false;
+    int numBytes = 0, i = 0;
+    char readBuf[BUFFER_SIZE];
+    bool writePuf = false;
     volatile bool interrupt = false;
     int charCount = 0;
     std::thread *input = nullptr;
@@ -128,36 +128,33 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
     });
 #endif
     while (!interrupt) {
-        if (i >= num_bytes) {
+        if (i >= numBytes) {
             i = 0;
-            num_bytes = read(fd, &read_buf, BUFFER_SIZE);
-            if (num_bytes <= 0) continue;
+            numBytes = read(fd, &readBuf, BUFFER_SIZE);
+            if (numBytes <= 0) continue;
         }
-        in = read_buf[i];
+        in = readBuf[i];
         ++i;
 
-        if (!write) {
+        if (!writePuf) {
             if ((in < 32 || in > 126) && in != 10 && in != 13) {
                 log_live(" ", log);
             } else {
                 log_live(in, log);
             }
         }
-        if (write && in != '|' && in != '&') {
-            output << in;
-        }
         if (START_1 == lastChar && START_2 == in) {
-            write = true;
+            writePuf = true;
             if (input != nullptr) {
                 input->join();
                 delete input;
             }
         } else if (END_1 == lastChar && END_2 == in) {
             ++count;
-            write = false;
+            writePuf = false;
             log_data(std::to_string(charCount) + " bytes in total written.", log);
-            output.flush();
-            if (auto *o = dynamic_cast<std::ofstream *>(&output)) {
+            pufOutput.flush();
+            if (auto *o = dynamic_cast<std::ofstream *>(&pufOutput)) {
                 o->close();
             }
             if (parser.getMaxMeasures() > 0 && count >= parser.getMaxMeasures()) {
@@ -194,17 +191,20 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
                 input->join();
                 delete input;
             }
-            output.flush();
-            if (auto *o = dynamic_cast<std::ofstream *>(&output)) {
+            pufOutput.flush();
+            if (auto *o = dynamic_cast<std::ofstream *>(&pufOutput)) {
                 o->close();
             }
         }
+        if (writePuf && charCount > 1) {
+            pufOutput << lastChar;
+        }
         lastChar = in;
-        if (write) {
+        if (writePuf) {
             ++charCount;
             if (charCount % FLUSH_INTERVAL == 0) {
                 std::cout << '\r' << charCount << " bytes written." << std::flush;
-				output.flush();
+				pufOutput.flush();
             }
         }
     }
