@@ -166,7 +166,9 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
         } else if (LOADED_1 == lastChar && LOADED_2 == in) {
             input = new std::thread([this, &parser] {
                 for (auto &param : parser.getParams()) {
-                    while (!expectInput) { /* wait */ }
+                    while (!expectInput) {
+                        if (interrupt) return; // Shortcut thread
+                    }
                     expectInput = false;
                     std::this_thread::sleep_for(std::chrono::milliseconds(50));
                     std::string toSend = param;
@@ -182,8 +184,16 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &output, int &count
             expectInput = true;
         } else if (FINISHED_1 == lastChar && FINISHED_2 == in) {
             interrupt = true;
+            if (input != nullptr) {
+                input->join();
+                delete input;
+            }
         } else if (PANIC_1 == lastChar && PANIC_2 == in) {
             interrupt = true;
+            if (input != nullptr) {
+                input->join();
+                delete input;
+            }
             output.flush();
             if (auto *o = dynamic_cast<std::ofstream *>(&output)) {
                 o->close();
