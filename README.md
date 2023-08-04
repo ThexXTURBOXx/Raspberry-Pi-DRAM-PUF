@@ -84,16 +84,18 @@ Here is a table for the pins:
 | 10 | 8 |   |
 ### Pictures
 
+![Wiring Diagram](./img/Wiring_Steckplatine.png?raw=true)<br>
+Image 1: Wiring Diagram<br>
 ![Top View](./img/top_view.jpeg?raw=true)<br>
-Image 1: Top View<br>
+Image 2: Top View<br>
 ![The Receiver 1](./img/receiver_1.jpeg?raw=true)<br>
-Image 2: The Receiver<br>
+Image 3: The Receiver<br>
 ![The Receiver 2](./img/receiver_2.jpeg?raw=true)<br>
-Image 3: The other side of the Receiver<br>
+Image 4: The other side of the Receiver<br>
 ![The Sender](./img/sender.jpeg?raw=true)<br>
-Image 4: The Sender<br>
+Image 5: The Sender<br>
 ![The Relay Module](./img/relay.jpeg?raw=true)<br>
-Image 5: The Relay Module
+Image 6: The Relay Module
 
 ## General tips
 
