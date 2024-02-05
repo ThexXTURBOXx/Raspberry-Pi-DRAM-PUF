@@ -262,7 +262,6 @@ void TestPuf() {
     delay_ms(50);
 
     delay_s(decaytime);
-
 }
 
 /**
@@ -408,10 +407,8 @@ void TestAtInterval() {
     int decaytime = getdecaytime();
     mailbox_write(decaytime);
     delay_ms(50);
-    //delay_s(150);
 
     delay_s(decaytime);
 
     //puf_read_itvl(stradd, endadd, addmode);
-
 }
