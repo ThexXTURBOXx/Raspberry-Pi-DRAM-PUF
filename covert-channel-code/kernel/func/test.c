@@ -3,7 +3,7 @@
 #include "getparam.c"
 
 #define MENU_SELECT "Select the function to run in the delay time:\r\n \
-0: no operation\r\n 1: add\r\n 2: div|: "
+0: no operation\r\n 1: add\r\n 2: sub\r\n 3: mul\r\n 4: div\r\n 5: mod|: "
 
 void print_hex(uint32_t a, int b) {
     for (int i = b - 1; i >= 0; i--) {
@@ -199,7 +199,7 @@ void TestAllAddress() {
     delay_ms(50);
 
     uart_puts(MENU_SELECT);
-    int dcyfunc = getmode();
+    int dcyfunc = get_mode();
     mailbox_write(dcyfunc);
     delay_ms(50);
 
@@ -247,7 +247,7 @@ void TestPuf() {
     delay_ms(50);
 
     uart_puts(MENU_SELECT);
-    int dcyfunc = getmode();
+    int dcyfunc = get_mode();
     mailbox_write(dcyfunc);
     delay_ms(50);
 
@@ -345,7 +345,7 @@ void TestOneRow() {
     delay_ms(50);
 
     uart_puts(MENU_SELECT);
-    int dcyfunc = getmode();
+    int dcyfunc = get_mode();
     mailbox_write(dcyfunc);
     delay_ms(50);
 
@@ -395,7 +395,7 @@ void TestAtInterval() {
     delay_ms(50);
 
     uart_puts(MENU_SELECT);
-    int dcyfunc = getmode();
+    int dcyfunc = get_mode();
     mailbox_write(dcyfunc);
     delay_ms(50);
 

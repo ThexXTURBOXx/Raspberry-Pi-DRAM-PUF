@@ -55,11 +55,11 @@
 
         /* ARM Mailbox */
 #define ARM_SBM_OWN0 0x2000B800 /* ARM_BASE + 0x800 */
-#define ARM_SBM_OWN1 0x2000B900
 
+#define ARM_0_MAIL0_STA (ARM_SBM_OWN0 + 0x98) /* Status register */
+#define ARM_0_MAIL0_RD  (ARM_SBM_OWN0 + 0x80) /* Read VC4->ARM */
 #define ARM_0_MAIL1_STA (ARM_SBM_OWN0 + 0xB8) /* Status register */
 #define ARM_0_MAIL1_WRT (ARM_SBM_OWN0 + 0xA0) /* Write ARM->VC4 */
-#define ARM_0_MAIL0_RD  (ARM_SBM_OWN0 + 0x80)
-#define ARM_1_MAIL1_RD  (ARM_SBM_OWN1 + 0xA0)
 
-#define ARM_MS_FULL 0x80000000
+#define ARM_MS_EMPTY 0x40000000
+#define ARM_MS_FULL  0x80000000

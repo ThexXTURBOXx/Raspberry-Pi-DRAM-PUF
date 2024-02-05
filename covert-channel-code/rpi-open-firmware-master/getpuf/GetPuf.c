@@ -13,7 +13,7 @@ extern void timing_init();
  *
  * Input: decay_time
 **/
-static unsigned long MRList[]={
+unsigned long MRList[]={
 	0xc0023000,
 	0xc0024000,
 	0xc0123000,
@@ -34,18 +34,24 @@ int inArray(unsigned long a)
 	return 0;
 }
 
-static void GPUfunc(int dcy_func)
+void GPUfunc(int dcy_func)
 {
 	switch(dcy_func)
 	{
 		case  1: add(0x200, 0x400);
 				 break;
-		case  2: division(0x200,0x400);
+		case  2: sub(0x200, 0x400);
+				 break;
+		case  3: multi(0x200, 0x400);
+				 break;
+		case  4: division(0x200, 0x400);
+				 break;
+		case  5: modulo(0x200, 0x400);
 				 break;
 		default: break;
 	}
 }
-static void Refresh()
+void Refresh()
 {
 	int length=sizeof(MRList)/4;
 	unsigned long temp=0xc0000000;
@@ -77,7 +83,7 @@ static void Refresh()
 }
 
 
-static void ManuallyRefresh(int decay_time,int dcy_func,int nfreq)
+void ManuallyRefresh(int decay_time,int dcy_func,int nfreq)
 {	
 	int freq_func=nfreq;			// func_freq=n*50us
 	int ftp=0;
@@ -187,7 +193,7 @@ unsigned long cal(unsigned long x)
  * 
  * Input: puf_addr, puf_size, puf_init_value
 **/
-static void puf_init(unsigned long addr,unsigned int puf_size, unsigned int init_value)
+void puf_init(unsigned long addr,unsigned int puf_size, unsigned int init_value)
 {
 	for(unsigned int puf_write_loop=0;puf_write_loop<puf_size;puf_write_loop++)
 	{
@@ -211,7 +217,7 @@ static void puf_init(unsigned long addr,unsigned int puf_size, unsigned int init
  * 
  * Input: start_addr, end_addr, puf_init_value
 **/
-static void puf_init_all(unsigned long start_addr, unsigned long end_addr, unsigned int init_value)
+void puf_init_all(unsigned long start_addr, unsigned long end_addr, unsigned int init_value)
 {
 	unsigned long addr;
 	for(addr=start_addr; addr<=end_addr; addr+=4)
@@ -235,7 +241,7 @@ static void puf_init_all(unsigned long start_addr, unsigned long end_addr, unsig
  * Input: start_addr, end_addr, itvl
  *
 **/
-static void puf_read_itvl(unsigned long start_addr, unsigned long end_addr, unsigned int add_mode)
+void puf_read_itvl(unsigned long start_addr, unsigned long end_addr, unsigned int add_mode)
 {
 	unsigned long itvl=(end_addr-start_addr)/0x1000000;
 
@@ -294,7 +300,7 @@ static void puf_read_itvl(unsigned long start_addr, unsigned long end_addr, unsi
  * Input: puf_addr
  *
 **/
-static void puf_read_all(unsigned long start_addr, unsigned long end_addr, unsigned int add_mode)
+uint32_t puf_read_all(unsigned long start_addr, unsigned long end_addr, unsigned int add_mode)
 {
 	putchar(0x16); // SYN
 	putchar(0x16); // SYN
@@ -331,6 +337,7 @@ static void puf_read_all(unsigned long start_addr, unsigned long end_addr, unsig
 	}
     printf("|&%d|$\n",puf_cell);
     delay_ms(100);
+	return puf_cell;
 }
 
 /**
@@ -340,7 +347,7 @@ static void puf_read_all(unsigned long start_addr, unsigned long end_addr, unsig
  * Input: puf_addr
  *
 **/
-static void puf_read_ext(unsigned long start_addr, unsigned long end_addr, unsigned int add_mode)
+void puf_read_ext(unsigned long start_addr, unsigned long end_addr, unsigned int add_mode)
 {
     printf("&|");
 	unsigned int puf_read_val=0;
@@ -387,7 +394,7 @@ static void puf_read_ext(unsigned long start_addr, unsigned long end_addr, unsig
  * Input: puf_addr
  *
 **/
-static void puf_read_brc(unsigned long start_addr, unsigned long end_addr)
+void puf_read_brc(unsigned long start_addr, unsigned long end_addr)
 {
 	unsigned int puf_read_val=0;
 	unsigned long addr;
@@ -420,7 +427,7 @@ static void puf_read_brc(unsigned long start_addr, unsigned long end_addr)
  *
  * Input: puf_start_address, puf_end address, puf_init_value, decay_time
 **/
-static void puf_extract_all(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value, int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
+void puf_extract_all(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value, int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
 {
 	/* PUF Init */
 	puf_init_all(start_addr,end_addr,puf_init_value);
@@ -449,7 +456,7 @@ static void puf_extract_all(unsigned long start_addr,unsigned long end_addr, uns
  *
  * Input: puf_start_address, puf_end address, puf_init_value, decay_time
 **/
-static void puf_extracted(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value, int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
+void puf_extracted(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value, int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
 {
 	/* PUF Init */
 	puf_init_all(start_addr,end_addr,puf_init_value);
@@ -479,7 +486,7 @@ static void puf_extracted(unsigned long start_addr,unsigned long end_addr, unsig
  *
  * Input: puf_start_address, puf_end address, puf_init_value, decay_time
 **/
-static void puf_extract_brc(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value, int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
+void puf_extract_brc(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value, int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
 {
 
 	/* PUF Init */
@@ -512,7 +519,7 @@ static void puf_extract_brc(unsigned long start_addr,unsigned long end_addr, uns
  *
  * P.S. Test one row for each interval
 **/
-static void puf_extract_itvl(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value,int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
+void puf_extract_itvl(unsigned long start_addr,unsigned long end_addr, unsigned long puf_init_value,int decay_time, int add_mode, int func_loc, int dcy_func, int nfreq)
 {
 	/* PUF Init */
 	puf_init_all(start_addr,end_addr,puf_init_value);

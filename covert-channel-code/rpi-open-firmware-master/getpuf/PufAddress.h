@@ -1,3 +1,5 @@
+#pragma once
+
 #define HIGH_BITS_SET							  0xc0000000
 #define BANK_BITS 								  28:26
 #define BANK_SET                                  0x00000000

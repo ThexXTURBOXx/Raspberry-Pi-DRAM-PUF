@@ -99,46 +99,37 @@ void sleh_fatal(vc4_saved_state_t* pcb, uint32_t n) {
 	hang_cpu();
 }
 
-extern int getmode();
+extern int get_mode();
 extern void get_func_loc();
-extern void get_dcy_func();
+extern void get_decay_func();
 extern void get_func_freq();
-
 extern void get_address_mode();
-extern void ext_getdecaytime();
-extern void brc_getdecaytime();
+extern void get_decay_time();
+extern void get_start_address();
+extern void get_end_address();
+extern void get_init_value();
 
-extern void all_start_address();
-extern void all_end_address();
-extern void all_getinitvalue();
-extern void all_getdecaytime();
-
-extern void itvl_start_address();
-extern void itvl_end_address();
-extern void itvl_getitvl();
-extern void itvl_getinitvalue();
-extern void itvl_getdecaytime();
+extern void execute_puf(int);
 
 extern void cpu_code();
 
 #define PUF_ARGS_AMT 8
 
-int time=0;
+volatile int time=0;
 /**
  * flag_m: Mark workmode_set_status
  * flag_mm: Mark puf_extract_status
 **/
-bool flag_m=0,flag_mm=0;
-int mode=0;
+volatile bool flag_m=0,flag_mm=0;
+volatile int mode=0;
 void sleh_irq(vc4_saved_state_t* pcb, uint32_t tp) 
 {
 	uint32_t status = IC0_S;
 	uint32_t source = status & 0xFF;
 	if (flag_m==0)
 	{
-		mode=getmode();
+		mode=get_mode();
 	}
-
 	else if (mode==0 && flag_m==1 && flag_mm==0)
 	{
 		time++;
@@ -148,17 +139,18 @@ void sleh_irq(vc4_saved_state_t* pcb, uint32_t tp)
 					 break;
 			case  2: get_func_loc();
 					 break;
-			case  3: all_start_address();
+			case  3: get_start_address();
 					 break;
-			case  4: all_end_address();
+			case  4: get_end_address();
 					 break;
-			case  5: all_getinitvalue();
+			case  5: get_init_value();
 					 break;
-			case  6: get_dcy_func();
+			case  6: get_decay_func();
 					 break;
 			case  7: get_func_freq();
 					 break;
-			case  0: all_getdecaytime();
+			case  0: get_decay_time();
+					 execute_puf(mode);
 					 flag_mm=1;
 					 time=0;
 					 break;
@@ -175,17 +167,18 @@ void sleh_irq(vc4_saved_state_t* pcb, uint32_t tp)
 					 break;
 			case  2: get_func_loc();
 					 break;
-			case  3: all_start_address();
+			case  3: get_start_address();
 					 break;
-			case  4: all_end_address();
+			case  4: get_end_address();
 					 break;
-			case  5: all_getinitvalue();
+			case  5: get_init_value();
 					 break;
-			case  6: get_dcy_func();
+			case  6: get_decay_func();
 					 break;
 			case  7: get_func_freq();
 					 break;
-			case  0: ext_getdecaytime();
+			case  0: get_decay_time();
+					 execute_puf(mode);
 					 flag_mm=1;
 					 time=0;
 					 break;
@@ -201,17 +194,18 @@ void sleh_irq(vc4_saved_state_t* pcb, uint32_t tp)
 					 break;
 			case  2: get_func_loc();
 					 break;
-			case  3: all_start_address();
+			case  3: get_start_address();
 					 break;
-			case  4: all_end_address();
+			case  4: get_end_address();
 					 break;
-			case  5: all_getinitvalue();
+			case  5: get_init_value();
 					 break;
-			case  6: get_dcy_func();
+			case  6: get_decay_func();
 					 break;
 			case  7: get_func_freq();
 					 break;
-			case  0: brc_getdecaytime();
+			case  0: get_decay_time();
+					 execute_puf(mode);
 					 flag_mm=1;
 					 time=0;
 					 break;
@@ -227,17 +221,18 @@ void sleh_irq(vc4_saved_state_t* pcb, uint32_t tp)
                      break;
 			case  2: get_func_loc();
 					 break;
-			case  3: itvl_start_address();
+			case  3: get_start_address();
 					 break;
-			case  4: itvl_end_address();
+			case  4: get_end_address();
 					 break;
-			case  5: itvl_getinitvalue();
+			case  5: get_init_value();
 					 break;
-			case  6: get_dcy_func();
+			case  6: get_decay_func();
 					 break;
 			case  7: get_func_freq();
 					 break;
-			case  0: itvl_getdecaytime();
+			case  0: get_decay_time();
+					 execute_puf(mode);
 					 flag_mm=1;
 					 time=0;
 					 break;

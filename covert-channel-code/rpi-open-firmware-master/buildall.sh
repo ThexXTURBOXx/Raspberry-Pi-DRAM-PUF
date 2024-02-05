@@ -11,12 +11,12 @@ echo "-----------------------------------------"
 echo "Building chainloader ..."
 echo "-----------------------------------------"
 cd arm_chainloader
-make
+make -j4
 echo "-----------------------------------------"
 echo "Building firmware ..."
 echo "-----------------------------------------"
 cd ..
-make
+make -j4
 
 # stage through WSL
 if [ "$1" = "sw" ]; then

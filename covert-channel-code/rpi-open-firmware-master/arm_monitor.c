@@ -24,24 +24,26 @@ First stage monitor.
 
 #define logf(fmt, ...) printf("[SDRAM:%s]: " fmt, __FUNCTION__, ##__VA_ARGS__);
 
-unsigned int addmode, bank, row, col, mode, address, funcloc, dcyfunc, nfreq;
-unsigned int stradd, endadd, initvalue, pufsize, decaytime, cputemp, interval;
+volatile unsigned int addmode, bank, row, col, mode, address, funcloc, dcyfunc, nfreq;
+volatile unsigned int stradd, endadd, initvalue, pufsize, decaytime, cputemp, interval;
 
-int getmode()
+int get_mode()
 {
 	mode=ARM_1_MAIL1_RD;
 
 	switch (mode)
 	{
-		case  0: printf("\nGet All PUF(bit)\n");
+		case  0: printf("\nMemory dump (bit)\n\n");
 				 break;
-		case  1: printf("\nGet All PUF(cell)\n");
+		case  1: printf("\nGet All PUF (cell)\n\n");
 				 break;
-		case  2: printf("\nGet All PUF(bitflip)\n");
+		case  2: printf("\nGet All PUF (bitflip)\n\n");
 				 break;
-		case  3: printf("\nExtract PUF at Intervals\n");
+		case  3: printf("\nExtract PUF at Intervals\n\n");
 				 break;
-		default: printf("\nTest DRAM PUF\n");
+		case  4: printf("\nTest parameters from kernel\n\n");
+				 break;
+		default: printf("\nUnknown value\n\n");
 				 break;
 	}
 	
@@ -66,7 +68,7 @@ void get_func_loc()
 		printf("\nFunction run on GPU\n\n");
 }
 
-void get_dcy_func()
+void get_decay_func()
 {
 	dcyfunc=ARM_1_MAIL1_RD;
 
@@ -113,7 +115,7 @@ void cpu_code()
 	}
 }
 
-void itvl_start_address()
+void get_start_address()
 {
 	stradd=ARM_1_MAIL1_RD;
 	if (stradd < 0xC3000000 || stradd > 0xDFFFFFFF) {
@@ -122,77 +124,43 @@ void itvl_start_address()
 	printf("\nPUF start address = 0x%08X\n\n",stradd);
 }
 
-void itvl_end_address()
+void get_end_address()
 {
 	endadd=ARM_1_MAIL1_RD;
 	if (endadd < 0xC3000000 || endadd > 0xDFFFFFFF) {
 		panic("Address must be between C3000000 and DFFFFFFF");
 	}
+	if (endadd <= stradd) {
+		panic("End address must be greater than start address");
+	}
 	printf("\nPUF end address = 0x%08X\n\n",endadd);
 }
 
-void itvl_getitvl()
-{
-	interval=ARM_1_MAIL1_RD;
-	printf("\nRow Interval = 0x%X\n\n",interval);
-}
-
-void itvl_getinitvalue()
+void get_init_value()
 {
 	initvalue=ARM_1_MAIL1_RD;
 	printf("\nPUF init value = 0x%08X\n\n",initvalue);
 }
 
-void itvl_getdecaytime()
+void get_decay_time()
 {
 	decaytime=ARM_1_MAIL1_RD;
 	printf("\ndecaytime = %d s\n\n",decaytime);
-	puf_extract_itvl(stradd,endadd,initvalue,decaytime, addmode, funcloc, dcyfunc, nfreq);
 }
 
-void all_start_address()
+void execute_puf(int mode)
 {
-	stradd=ARM_1_MAIL1_RD;
-	if (stradd < 0xC3000000 || stradd > 0xDFFFFFFF) {
-		panic("Address must be between C3000000 and DFFFFFFF");
+	if (mode==0) {
+		puf_extract_all(stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);	
+	} else if (mode==1) {
+		puf_extracted(stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);
+	} else if (mode==2) {
+		puf_extract_brc(stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);
+	} else if (mode==3) {
+		puf_extract_itvl(stradd,endadd,initvalue,decaytime, addmode, funcloc, dcyfunc, nfreq);
+	} else if (mode==4) {
+		cpu_code();
 	}
-	printf("\nPUF start address = 0x%08X\n\n",stradd);
-}
-
-void all_end_address()
-{
-	endadd=ARM_1_MAIL1_RD;
-	if (endadd < 0xC3000000 || endadd > 0xDFFFFFFF) {
-		panic("Address must be between C3000000 and DFFFFFFF");
-	}
-	printf("\nPUF end address = 0x%08X\n\n",endadd);
-}
-
-void all_getinitvalue()
-{
-	initvalue=ARM_1_MAIL1_RD;
-	printf("\nPUF init value = 0x%08x\n\n",initvalue);
-}
-
-void all_getdecaytime()
-{
-	decaytime=ARM_1_MAIL1_RD;
-	printf("\ndecaytime = %d s\n\n",decaytime);
-	puf_extract_all(stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);
-}
-
-void ext_getdecaytime()
-{
-	decaytime=ARM_1_MAIL1_RD;
-	printf("\ndecaytime = %d s\n\n",decaytime);
-	puf_extracted(stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);
-}
-
-void brc_getdecaytime()
-{
-	decaytime=ARM_1_MAIL1_RD;
-	printf("\ndecaytime = %d s\n\n",decaytime);
-	puf_extract_brc(stradd, endadd, initvalue, decaytime, addmode, funcloc, dcyfunc, nfreq);
 }
 
 void monitor_start()
