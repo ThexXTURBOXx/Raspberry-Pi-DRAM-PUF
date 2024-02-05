@@ -256,6 +256,7 @@
       #define PM_RSTC_SRCFG_MSB                                  9
       #define PM_RSTC_SRCFG_LSB                                  8
       #define PM_RSTC_WRCFG_BITS                                 5:4
+      #define PM_RSTC_WRCFG_FULL_RESET                           0x00000020
       #define PM_RSTC_WRCFG_SET                                  0x00000030
       #define PM_RSTC_WRCFG_CLR                                  0xffffffcf
       #define PM_RSTC_WRCFG_MSB                                  5

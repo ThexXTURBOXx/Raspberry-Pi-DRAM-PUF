@@ -18,7 +18,8 @@ First stage monitor.
 =============================================================================*/
 
 #include <lib/runtime.h>
-#include "hardware.h"
+#include <hardware.h>
+#include <cpu.h>
 #include "getpuf/PufAddress.h"
 #include "getpuf/GetPuf.c"
 
@@ -167,6 +168,7 @@ void execute_puf(int mode)
 	} else if (mode==4) {
 		cpu_code();
 	}
+	//reboot();
 }
 
 void monitor_start()
