@@ -9,7 +9,7 @@ SRCS = \
 	start.s \
 	romstage.c \
 	sdram.c \
-	arm_monitor.cc \
+	arm_monitor.c \
 	trap.c \
 	lib/xprintf.c \
 	lib/panic.c \
