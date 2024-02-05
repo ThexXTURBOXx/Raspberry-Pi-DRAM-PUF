@@ -152,9 +152,9 @@ int _main(unsigned int cpuid, unsigned int load_address) {
 	putchar(0x16); // SYN
 
 	printf(
-	    "Booting Raspberry Pi....\n"
-	    "Copyright 2016-2017 rpi-open-firmware authors \n"
-	    "BUILD DATE  : %s %s \n",
+	    "Booting Raspberry Pi...\n"
+	    "Copyright 2016-2017 rpi-open-firmware authors\n"
+	    "BUILD DATE: %s %s\n",
 	    __DATE__, __TIME__
 	);
 
