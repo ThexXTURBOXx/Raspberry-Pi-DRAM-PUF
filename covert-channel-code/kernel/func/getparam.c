@@ -134,7 +134,7 @@ int getfuncfreq() {
 
 // choose mode
 int get_mode() {
-    int mode = 1;
+    int mode = 0;
     while (1) {
         unsigned char temp = uart_getc();
         if (temp == 13) {
