@@ -78,7 +78,13 @@ void get_decay_func()
 				 break;
 		case  1: printf("\nAdd\n\n");
 				 break;
-		case  2: printf("\nDIV\n\n");
+		case  2: printf("\nSub\n\n");
+				 break;
+		case  3: printf("\nMul\n\n");
+				 break;
+		case  4: printf("\nDiv\n\n");
+				 break;
+		case  5: printf("\nMod\n\n");
 				 break;
 		default: printf("\nNo operation\n\n");
 				 break;
