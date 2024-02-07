@@ -2,20 +2,20 @@
 
 ## Preparing the Receiver
 
-1. Install Raspbian onto the Micro SD Card
+1. Install Raspberry Pi OS Legacy (Bullseye, 64-bit) onto the Micro SD Card
 2. Open ``boot/cmdline.txt`` and remove the following: ``console=serial0,115200``
 3. Open ``boot/config.txt`` and add the following line under ``dtparam=audio=on``: ``enable_uart=1``
 4. Insert the SD Card into the Raspberry Pi and start it up
 5. When it's fully booted, configure it with the automatically started wizard.
 6. When the wizard asks you to restart, then restart it. Also make sure to have configured a internet connection by now.
-7. Run the following commands (Replace TARGET_FOLDER with the desired target folder for your installation):
+7. Run the following commands (Replace TARGET_FOLDER with the desired target folder for your installation; when choosing 32-bit, you should replace `arm64` below with `armhf`):
 ```shell
 cd TARGET_FOLDER
 sudo apt update && sudo apt full-upgrade -y
 sudo apt install git minicom -y
-wget https://github.com/WiringPi/WiringPi/releases/download/2.61-1/wiringpi-2.61-1-armhf.deb
-sudo apt install ./wiringpi-2.61-1-armhf.deb -y
-rm ./wiringpi-2.61-1-armhf.deb
+wget https://github.com/WiringPi/WiringPi/releases/download/2.61-1/wiringpi-2.61-1-arm64.deb
+sudo apt install ./wiringpi-2.61-1-arm64.deb -y
+rm ./wiringpi-2.61-1-arm64.deb
 git clone https://github.com/Taywee/args.git
 cd args
 sudo make install DESTDIR=/usr

@@ -161,7 +161,7 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &pufOutput, int &co
                 running = false;
             }
         } else if (LOADED_1 == lastChar && LOADED_2 == in) {
-            input = new std::thread([this, &parser] {
+            input = new std::thread([this, &parser, &interrupt] {
                 for (auto &param : parser.getParams()) {
                     while (!expectInput) {
                         if (interrupt) return; // Shortcut thread
