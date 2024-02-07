@@ -148,6 +148,7 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &pufOutput, int &co
             if (input != nullptr) {
                 input->join();
                 delete input;
+                input = nullptr;
             }
         } else if (END_1 == lastChar && END_2 == in) {
             ++count;
@@ -184,12 +185,14 @@ bool SerialReader::Runner::loop(Parser &parser, std::ostream &pufOutput, int &co
             if (input != nullptr) {
                 input->join();
                 delete input;
+                input = nullptr;
             }
         } else if (PANIC_1 == lastChar && PANIC_2 == in) {
             interrupt = true;
             if (input != nullptr) {
                 input->join();
                 delete input;
+                input = nullptr;
             }
             pufOutput.flush();
             if (auto *o = dynamic_cast<std::ofstream *>(&pufOutput)) {
