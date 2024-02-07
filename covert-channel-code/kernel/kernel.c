@@ -44,6 +44,12 @@ void kernel_main(uint32_t r0, uint32_t r1, uint32_t atags) {
 
     uart_init();
     uart_putc(0x16);
+    uart_putc(0x16);
+    uart_putc(0x16);
+    delay_s(10);
+    uart_putc(0x16);
+    uart_putc(0x16);
+    uart_putc(0x16);
     uart_puts("$|Choose mode:\r\n 0: memory dump (bit)\r\n 1: test all addresses (cell)\r\n 2: test all addresses (bitflip summary)\r\n 3: extract at interval\r\n 4: test params from kernel|: ");
     int input = get_mode();
     switch(input) {
