@@ -12,7 +12,7 @@ int SerialReader::init(const int argc, const char** argv) {
   args::HelpFlag help(argsParser, "help", "Display this help menu", {'h', "help"});
   args::ValueFlag<std::string> serialPortA(argsParser, "serial", "The serial port to use", {'s', "serial"},
                                            "/dev/ttyS0");
-  args::ValueFlag<std::string> gpioChipA(argsParser, "serial", "The GPIO chip to use", {'g', "gpio"},
+  args::ValueFlag<std::string> gpioChipA(argsParser, "chip", "The GPIO chip to use", {'g', "gpio"},
                                          "gpiochip0");
   args::ValueFlag baudA(argsParser, "baud", "Baud Rate to use", {'b', "baud"}, 115200);
   args::ValueFlag usbPortA(argsParser, "relais", "The USB bus to use", {'r', "relais"}, 2);
