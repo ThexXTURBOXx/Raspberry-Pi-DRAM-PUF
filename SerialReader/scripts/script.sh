@@ -14,7 +14,7 @@ exit
 fi
 
 mkdir $1
-cd $1
+pushd $1
 
 #Needed when we want to start climate chamber simultaneously with this script
 #echo "Sleeping for 1 hour"
@@ -29,7 +29,7 @@ echo "Generated .bin will have the scheme run_TIME_ATTEMPT.bin"
 function measure {
   #create directory
   mkdir $1
-  cd $1
+  pushd $1
 
   #set dump file name
   NAME=$FILEPREFIX$1_
@@ -40,12 +40,12 @@ function measure {
   ~/SerialReader -p 0 -p 0 -p 0 -p $3 -p $4 -p $5 -p 1 -p 1 -p $2 -o $NAME -m $RUNS
   ########
   echo "Run for $2 seconds decay time completed."
-  cd ..
+  popd
 }
 
 function area {
   mkdir $1$2
-  cd $1$2
+  pushd $1$2
 
   echo "Measuring in area [$1-$2] with $3 as challenge"
   measure 10s 10 $1 $2 $3
@@ -72,8 +72,22 @@ function area {
 
   measure 10min 600 $1 $2 $3
 
+  measure 15min 600 $1 $2 $3
+
+  measure 20min 600 $1 $2 $3
+
+  measure 25min 600 $1 $2 $3
+
+  measure 30min 600 $1 $2 $3
+
+  measure 40min 600 $1 $2 $3
+
+  measure 50min 600 $1 $2 $3
+
+  measure 60min 600 $1 $2 $3
+
   echo "$1 and $2 done"
-  cd ..
+  popd
 }
 
 
@@ -95,4 +109,4 @@ area c68 c7 fffffffff
 
 
 echo "Completed all runs."
-cd ..
+popd
