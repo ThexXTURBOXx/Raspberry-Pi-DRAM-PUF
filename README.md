@@ -103,7 +103,7 @@ Image 6: The Relay Module
     // Params for the Firmware
     const char **params = new const char *[9]{"0", "0", "0", "C3", "C38", "00000000", "0", "0", "120"};
     // Raspberry Pi Serial Port, GPIO chip Baud Rate, Relay GPIO Pin, USB Sleep Time, Params for the Firmware, Params Size, stable.pos File, Key Length
-    char *key = gen_key("/dev/ttyS0", "gpiochip0", 115200, 2, 5, params, 10, "stable.pos", 1024);
+    char *key = gen_key("/dev/ttyS0", "gpiochip0", 115200, 2, 5, params, 9, "stable.pos", 1024);
     for (int i = 0; i < 1024; i++) {
         std::cout << key[i];
     }
@@ -115,6 +115,7 @@ Image 6: The Relay Module
      ```shell
      ./SerialReader -s /dev/ttyS0 -g gpiochip0 -b 115200 -r 2 -t 5 -m 10 -o dump -p 0 -p 0 -p 0 -p C3 -p C38 -p 00000000 -p 0 -p 0 -p 120
      ```
+ - To use the program with Java via JNI, set `COMPILE_JNI` to `1` within `CMakeLists.txt`, re-build the program (it should build an additional library) and run `sudo cp libSerialReader.so /usr/lib` to install it into the proper path.
  - Raspberry Pis usually have two GPIO chips: `gpiochip0` is the main one (the one which is connected to the main GPIO pin header) and `gpiochip1` is a secondary one which I don't know yet where it is on the Pi hardware itself.
  - You can use the programs in the `JavaPrograms` folder (old versions of DRAM-PUF-CLI) to examine existing DRAM dumps. Usages:
    - `java RaspPi [DRAM Dump-Files...]`: Shows general information about the given files, like Jaccard Index, Hamming Distance etc. If no file is given, it takes every file in the current folder with the extension `.bin` as dump files.

@@ -13,7 +13,7 @@ extern "C" {
  * Signature: (Ljava/lang/String;Ljava/lang/String;III[Ljava/lang/String;ILjava/lang/String;I)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL Java_DramPufJni_genKey
-(JNIEnv*, jclass, jstring, jstring, jint, jint, jint, jobjectArray, jint, jstring, jint);
+  (JNIEnv *, jclass, jstring, jstring, jint, jint, jint, jobjectArray, jint, jstring, jint);
 
 #ifdef __cplusplus
 }

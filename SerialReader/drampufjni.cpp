@@ -2,11 +2,11 @@
 #include "runnerc.h"
 
 JNIEXPORT jstring JNICALL Java_DramPufJni_genKey
-(JNIEnv* env, jobject this_obj, jstring _serial_port, jstring _gpio_chip,
+(JNIEnv* env, jclass this_obj, jstring _serial_port, jstring _gpio_chip,
  const jint _baud, const jint _rpi_power_port, const jint _sleep, jobjectArray _params,
  const jint _params_size, jstring _pos_file, const jint _key_size) {
   const auto params = new const char*[_params_size];
-  for (int i = 0; i < _params_size; i++) {
+  for (int i = 0; i < _params_size; ++i) {
     const auto str = reinterpret_cast<jstring>(env->GetObjectArrayElement(_params, i));
     params[i] = env->GetStringUTFChars(str, nullptr);
   }
@@ -22,7 +22,7 @@ JNIEXPORT jstring JNICALL Java_DramPufJni_genKey
   env->ReleaseStringUTFChars(_gpio_chip, gpioChip);
   env->ReleaseStringUTFChars(_pos_file, posFile);
 
-  for (int i = 0; i < _params_size; i++) {
+  for (int i = 0; i < _params_size; ++i) {
     const auto str = reinterpret_cast<jstring>(env->GetObjectArrayElement(_params, i));
     env->ReleaseStringUTFChars(str, params[i]);
   }
