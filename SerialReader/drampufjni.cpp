@@ -1,4 +1,4 @@
-#include "drampufjni.h"
+#include "DramPufJni.h"
 #include "runnerc.h"
 
 JNIEXPORT jstring JNICALL Java_DramPufJni_genKey
