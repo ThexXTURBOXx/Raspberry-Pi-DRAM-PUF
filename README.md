@@ -13,9 +13,7 @@
 cd TARGET_FOLDER
 sudo apt update && sudo apt full-upgrade -y
 sudo apt install git minicom -y
-wget https://github.com/WiringPi/WiringPi/releases/download/2.61-1/wiringpi-2.61-1-arm64.deb
-sudo apt install ./wiringpi-2.61-1-arm64.deb -y
-rm ./wiringpi-2.61-1-arm64.deb
+sudo apt install libpgiod-dev -y
 git clone https://github.com/Taywee/args.git
 cd args
 sudo make install DESTDIR=/usr
