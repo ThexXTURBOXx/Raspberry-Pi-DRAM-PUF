@@ -14,10 +14,9 @@ JNIEXPORT jstring JNICALL Java_DramPufJni_genKey
   const char* gpioChip = env->GetStringUTFChars(_gpio_chip, nullptr);
   const char* posFile = env->GetStringUTFChars(_pos_file, nullptr);
 
-  const auto ret = reinterpret_cast<jstring>(gen_key(
+  const char* ret = gen_key(
     serialPort, gpioChip, _baud, _rpi_power_port, _sleep,
-    reinterpret_cast<const char**>(_params), _params_size,
-    posFile, _key_size));
+    params, _params_size, posFile, _key_size);
 
   env->ReleaseStringUTFChars(_serial_port, serialPort);
   env->ReleaseStringUTFChars(_gpio_chip, gpioChip);
@@ -27,6 +26,10 @@ JNIEXPORT jstring JNICALL Java_DramPufJni_genKey
     const auto str = reinterpret_cast<jstring>(env->GetObjectArrayElement(_params, i));
     env->ReleaseStringUTFChars(str, params[i]);
   }
+  delete[] params;
 
-  return ret;
+  jstring jret = env->NewStringUTF(ret);
+  delete[] ret;
+
+  return jret;
 }
