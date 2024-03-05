@@ -436,7 +436,12 @@ void puf_extract_all(unsigned long start_addr,unsigned long end_addr, unsigned l
 	/* Decay & Manually Refresh */ 
 	// printf("SD_SA:value=0x%08X--address=0x%08X\n",SD_SA,&(SD_SA));
 	printf("disable Refresh\n");
-	SD_SA = 0x00003395;
+	SD_SA =
+	    (0 << SD_SA_RFSH_T_LSB)
+	    | SD_SA_PGEHLDE_SET
+	    | SD_SA_CLKSTOP_SET
+	    | SD_SA_POWSAVE_SET
+	    | 0x3214;
 	// printf("SD_SA:value=0x%08X--address=0x%08X\n",SD_SA,&(SD_SA));
 	if(func_loc)
 		ManuallyRefresh(decay_time, dcy_func, nfreq);
@@ -465,7 +470,12 @@ void puf_extracted(unsigned long start_addr,unsigned long end_addr, unsigned lon
 	/* Decay & Manually Refresh */ 
 	// printf("SD_SA:value=0x%08X--address=0x%08X\n",SD_SA,&(SD_SA));
 	printf("disable Refresh\n");
-	SD_SA = 0x00003395;
+	SD_SA =
+	    (0 << SD_SA_RFSH_T_LSB)
+	    | SD_SA_PGEHLDE_SET
+	    | SD_SA_CLKSTOP_SET
+	    | SD_SA_POWSAVE_SET
+	    | 0x3214;
 	// printf("SD_SA:value=0x%08X--address=0x%08X\n",SD_SA,&(SD_SA));
 	if(func_loc)
 		ManuallyRefresh(decay_time, dcy_func, nfreq);
@@ -496,7 +506,12 @@ void puf_extract_brc(unsigned long start_addr,unsigned long end_addr, unsigned l
 	/* Decay & Manually Refresh */ 
 	// printf("SD_SA:value=0x%08X--address=0x%08X\n",SD_SA,&(SD_SA));
 	printf("disable Refresh\n");
-	SD_SA = 0x00003395;
+	SD_SA =
+	    (0 << SD_SA_RFSH_T_LSB)
+	    | SD_SA_PGEHLDE_SET
+	    | SD_SA_CLKSTOP_SET
+	    | SD_SA_POWSAVE_SET
+	    | 0x3214;
 	// printf("SD_SA:value=0x%08X--address=0x%08X\n",SD_SA,&(SD_SA));
 	if(func_loc)
 		ManuallyRefresh(decay_time, dcy_func, nfreq);
@@ -528,7 +543,12 @@ void puf_extract_itvl(unsigned long start_addr,unsigned long end_addr, unsigned 
 	/* Decay & Manually Refresh */
 	// printf("SD_SA:value=0x%08X--address=0x%08X\n",SD_SA,&(SD_SA));
 	printf("disable Refresh\n");
-	SD_SA = 0x00003395;
+	SD_SA =
+	    (0 << SD_SA_RFSH_T_LSB)
+	    | SD_SA_PGEHLDE_SET
+	    | SD_SA_CLKSTOP_SET
+	    | SD_SA_POWSAVE_SET
+	    | 0x3214;
 	// printf("SD_SA:value=0x%08X--address=0x%08X\n",SD_SA,&(SD_SA));
 	if(func_loc)
 		ManuallyRefresh(decay_time, dcy_func, nfreq);
