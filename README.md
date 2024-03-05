@@ -102,7 +102,7 @@ Image 6: The Relay Module
     ```cpp
     // Params for the Firmware
     const char **params = new const char *[9]{"0", "0", "0", "C3", "C38", "00000000", "0", "0", "120"};
-    // Raspberry Pi Serial Port, GPIO chip Baud Rate, Relay GPIO Pin, USB Sleep Time, Params for the Firmware, Params Size, stable.pos File, Key Length
+    // Raspberry Pi Serial Port, GPIO Chip, Baud Rate, Relay GPIO Pin, USB Sleep Time, Params for the Firmware, Params Size, stable.pos File, Key Length
     char *key = gen_key("/dev/ttyS0", "gpiochip0", 115200, 2, 5, params, 9, "stable.pos", 1024);
     for (int i = 0; i < 1024; i++) {
         std::cout << key[i];
