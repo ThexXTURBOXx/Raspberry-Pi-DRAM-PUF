@@ -123,3 +123,12 @@ Image 6: The Relay Module
    - `java Extract [DRAM Dump-File] [stable.pos-File]`: This extracts a key out of the given dump using the given `stable.pos` file
  - If there is a OutOfMemoryError, you can assign more Memory for the Java virtual machine.  it is caused by the inefficient caching of the JVM. To avoid this, I gave java more memory to extract the stable bits by executing it e.g. via
     -`java -Xmx1G GenerateStable 128 out0.bin`:to give it 1GB of memory. You can change the 1G to 512M for example to give the JVM only 512MB. If even 1GB is not enough, you might need to copy all the binary files to another computer with a little bit more RAM to extract the stable bits.
+
+# Credits
+
+ - `covert-channel-code/rpi-open-firmware-master/` is based on Kristina Brooks's [rpi-open-firmware](https://github.com/christinaa/rpi-open-firmware), patched with Shuai Chen's, Wenjie Xiong's, Yehan Xu's, Bing Li's, and Jakub Szefer's [patches](https://caslab.csl.yale.edu/code/popchannels/) from their paper ["Thermal Covert Channels Leveraging Package-On-Package DRAM"](https://doi.org/10.1109/TrustCom/BigDataSE.2019.00050). Some modifications to the source were inspired by [Michael Bishop](https://github.com/cleverca22)'s [librerpi/rpi-open-firmware](https://github.com/librerpi/rpi-open-firmware) fork
+ - `covert-channel-code/kernel/` is based on Shuai Chen's, Wenjie Xiong's, Yehan Xu's, Bing Li's, and Jakub Szefer's [kernel image](https://caslab.csl.yale.edu/code/popchannels/) from their paper ["Thermal Covert Channels Leveraging Package-On-Package DRAM"](https://doi.org/10.1109/TrustCom/BigDataSE.2019.00050)
+ - `covert-channel-code/CC_DRAMPUF.patch` is taken directly from Shuai Chen's, Wenjie Xiong's, Yehan Xu's, Bing Li's, and Jakub Szefer's [code](https://caslab.csl.yale.edu/code/popchannels/) from their paper ["Thermal Covert Channels Leveraging Package-On-Package DRAM"](https://doi.org/10.1109/TrustCom/BigDataSE.2019.00050)
+ - `img/Wiring*` files have been generated using [Fritzing](https://fritzing.org/)
+ - `SDCard/` contains files which have been taken directly from [raspberrypi/firmware](https://github.com/raspberrypi/firmware)
+ - `SerialReader/scripts/` contains scripts which are based on the work of [Tanja Schaier](https://github.com/tanja-schaier) in the framework of her Bachelor's thesis "Auswirkung künstlicher Alterung auf den DRAM PUF"
