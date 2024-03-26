@@ -1,0 +1,35 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: hyperspeeed/vc4-toolchain
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Compile firmware
+      run: |
+           cd covert-channel-code/rpi-open-firmware-master
+           ./buildall.sh
+           cd ../..
+
+    - name: Compile kernel
+      run: |
+           cd covert-channel-code/kernel
+           make
+           cd ../..
+
+    - name: Upload boot files
+      uses: actions/upload-artifact@v3
+      with:
+        name: Boot Files
+        path: |
+          covert-channel-code/rpi-open-firmware-master/build/*.bin
+          covert-channel-code/kernel/*.img
+          SDCard/*
