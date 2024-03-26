@@ -25,11 +25,15 @@ jobs:
            make
            cd ../..
 
+    - name: Reorganise boot folder
+      run: |
+           mkdir boot
+           cp covert-channel-code/rpi-open-firmware-master/build/*.bin boot/
+           cp covert-channel-code/kernel/*.img boot/
+           cp SDCard/* boot/
+
     - name: Upload boot files
       uses: actions/upload-artifact@v3
       with:
         name: Boot Files
-        path: |
-          covert-channel-code/rpi-open-firmware-master/build/*.bin
-          covert-channel-code/kernel/*.img
-          SDCard/*
+        path: boot/*
