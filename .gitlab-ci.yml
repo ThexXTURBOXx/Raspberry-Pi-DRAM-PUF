@@ -1,9 +1,10 @@
 stages:
   - build
 
-build:
+image: hyperspeeed/vc4-toolchain
+
+Build:
   stage: build
-  image: hyperspeeed/vc4-toolchain
   script:
     - cd covert-channel-code/rpi-open-firmware-master
     - ./buildall.sh
@@ -16,5 +17,7 @@ build:
     - cp covert-channel-code/kernel/*.img boot/
     - cp SDCard/* boot/
   artifacts:
+    expire_in: never
+    name: "Boot Files"
     paths:
-      - boot/*
+      - "boot/*"
