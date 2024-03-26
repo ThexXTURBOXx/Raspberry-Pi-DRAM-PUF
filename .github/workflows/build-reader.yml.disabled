@@ -1,0 +1,33 @@
+name: Build SerialReader
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    # macos-13 is running on arm64
+    runs-on: macos-13
+    container: ghcr.io/dtcooper/raspberrypi-os
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: apt install cmake make g++ default-jdk libgpiod-dev
+
+    - name: Compile SerialReader
+      run: |
+           cd SerialReader
+           cmake .
+           make
+           cd ..
+
+    - name: Upload SerialReader
+      uses: actions/upload-artifact@v3
+      with:
+        name: SerialReader
+        path: |
+          SerialReader/libSerialReader.so
+          SerialReader/SerialReader
