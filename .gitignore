@@ -1,2 +1,10 @@
 .vscode/
 .cmake/
+
+*.elf
+
+*.bin
+
+*.o
+
+*.img
