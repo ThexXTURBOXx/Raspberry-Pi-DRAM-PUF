@@ -32,11 +32,21 @@
 
 ## Preparing the Sender
 
-1. You can build the firmware from source, if you'd like to do so (see next section). Else, there are pre-compiled binaries included.
-2. Copy all files from the folder `SDCard` onto the boot partition of a Micro SD-Card
-3. Copy `covert-channel-code/kernel/kernel.img` and `covert-channel-code/rpi-open-firmware-master/build/bootcode.bin` to the boot Partition of the Micro SD-Card as well
+### Using precompiled files
 
-## Building the Sender firmware from source
+#### From GitHub
+
+1. Just download the [latest workflow build](https://nightly.link/ThexXTURBOXx/Raspberry-Pi-DRAM-PUF/workflows/build-firmware/master/Boot%20Files.zip)
+2. Copy all files from inside the zip file onto the boot partition of a Micro SD-Card
+
+#### From UPA FIM GitLab (the same, just a mirror)
+
+1. Go to the [latest pipeline build](https://git.fim.uni-passau.de/anagnostop/raspberry-pi-dram-puf/-/pipelines/latest)
+2. Open its build log
+3. On the right sidebar, click on `Download` under `Job artifacts`
+4. Copy all files from inside the zip file onto the boot partition of a Micro SD-Card
+
+### Building the Sender firmware from source
 
 The following has been done in a VM with Ubuntu 16.04 Xenial. Other versions could work, but packages may be deprecated or unsupported.
 
@@ -62,6 +72,8 @@ The following has been done in a VM with Ubuntu 16.04 Xenial. Other versions cou
    ```
 5. Go to `covert-channel-code/kernel` and run `sudo make all`
 6. Go to `covert-channel-code/rpi-open-firmware-master` and run `./buildall.sh`
+7. Copy all files from the folder `SDCard` onto the boot partition of a Micro SD-Card
+8. Copy `covert-channel-code/kernel/kernel.img` and `covert-channel-code/rpi-open-firmware-master/build/bootcode.bin` to the boot Partition of the Micro SD-Card as well
 
 ## Wiring Setup
 
