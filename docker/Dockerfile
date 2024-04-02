@@ -52,7 +52,7 @@ RUN apt install -y \
 
 RUN apt build-dep -y gcc-6
 
-RUN apt-get install -y \
+RUN apt install -y \
     cmake \
     guile-1.8 \
     libqt4-dev \
