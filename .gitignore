@@ -1,10 +1,7 @@
 .vscode/
 .cmake/
-
+build/
 *.elf
-
 *.bin
-
 *.o
-
 *.img
