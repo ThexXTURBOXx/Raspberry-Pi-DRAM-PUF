@@ -1,13 +1,7 @@
-FROM ubuntu:xenial
+FROM ubuntu
 
-RUN apt update
-
-RUN apt install -y \
-    python3-launchpadlib \
-    software-properties-common
-
-RUN add-apt-repository -y ppa:ubuntu-toolchain-r/test
-RUN echo "deb-src http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu xenial main" >> /etc/apt/sources.list.d/ubuntu-toolchain-r-ubuntu-test-xenial.list
+# Enable source repos for build-dep gcc below
+RUN sed -i 's/# deb-src/deb-src/g' /etc/apt/sources.list
 
 RUN apt update
 
@@ -17,7 +11,9 @@ RUN apt update
 
 ENV DEBIAN_FRONTEND noninteractive
 
-RUN apt install -y wget
+RUN apt install -y \
+    wget \
+    xz-utils
 
 ARG MAJOR=4.9
 ARG MINOR=4
@@ -44,18 +40,17 @@ ENV PATH="/opt/toolchain/bin:${PATH}"
 
 RUN apt install -y \
     lib32z1 \
-    lib32ncurses5 \
-    gcc-6 \
+    lib32ncurses6 \
+    gcc \
     git \
     gcc-arm-none-eabi \
     libssl-dev
 
-RUN apt build-dep -y gcc-6
+RUN apt build-dep -y gcc
 
 RUN apt install -y \
     cmake \
-    guile-1.8 \
-    libqt4-dev \
+    guile-2.2 \
     texinfo \
     libgmp-dev \
     libmpc-dev \
