@@ -49,5 +49,5 @@ jobs:
       with:
         name: SerialReader-${{ matrix.arch }}
         path: |
-          libSerialReader.so
-          SerialReader
+          SerialReader/libSerialReader.so
+          SerialReader/SerialReader

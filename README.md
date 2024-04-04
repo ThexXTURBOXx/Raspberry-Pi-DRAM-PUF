@@ -2,11 +2,7 @@
 
 ## Preparing the Receiver
 
-### Using precompiled files
-
-1. Just download the [latest workflow build](https://nightly.link/ThexXTURBOXx/Raspberry-Pi-DRAM-PUF/workflows/build-reader/master/Boot%20Files.zip) and extract it
-
-### Building the SerialReader from source
+### Prepare the Raspberry Pi
 
 1. Install Raspberry Pi OS Legacy (Bullseye, 64-bit) onto the Micro SD Card
 2. Open `boot/cmdline.txt` and remove the following: `console=serial0,115200`
@@ -14,27 +10,42 @@
 4. Insert the SD Card into the Raspberry Pi and start it up
 5. When it's fully booted, configure it with the automatically started wizard.
 6. When the wizard asks you to restart, then restart it. Also make sure to have configured a internet connection by now.
-7. Run the following commands (Replace TARGET_FOLDER with the desired target folder for your installation; when choosing 32-bit, you should replace `arm64` below with `armhf`):
+7. Run the following commands:
+    ```shell
+    sudo apt update && sudo apt full-upgrade -y
+    sudo apt install minicom -y
+    ```
+8. Retrieve the SerialReader as described in the section below.
+9. The Receiver should be set up now. Type `./SerialReader -h` for help.
+
+### Retrieve SerialReader
+
+#### Using precompiled files
+
+1. Just download the latest workflow build for either [armv7l](https://nightly.link/ThexXTURBOXx/Raspberry-Pi-DRAM-PUF/workflows/build-reader/master/SerialReader-armv7l.zip) or [aarch64](https://nightly.link/ThexXTURBOXx/Raspberry-Pi-DRAM-PUF/workflows/build-reader/master/SerialReader-aarch64.zip) (depending on your system) and extract it
+
+#### Building the SerialReader from source
+
+1. On a fully set-up Raspberry Pi with Raspberry Pi OS, run the following commands:
     ```shell
     cd TARGET_FOLDER
     sudo apt update && sudo apt full-upgrade -y
-    sudo apt install git minicom -y
-    sudo apt install libpgiod-dev -y
+    sudo apt install git libpgiod-dev -y
     git clone https://github.com/Taywee/args.git
     cd args
     sudo make install DESTDIR=/usr
     cd ..
     ```
-8. Copy the receiver program `SerialReader` to the Raspberry Pi. You can also build it yourself by
+2. Build the SerialReader through:
     ```shell
     cmake .
     make -j2
     ```
-9. Make it executable by doing a
+3. Make it executable by doing a
     ```shell
     chmod +x SerialReader
     ```
-10. The Receiver should be set up now. Type `./SerialReader -h` for help.
+4. Copy the receiver program `SerialReader` (and if you need it, also the JNI library `libSerialReader.so`) to the Raspberry Pi.
 
 ## Preparing the Sender
 
