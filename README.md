@@ -48,7 +48,7 @@
 
 ### Building the Sender firmware from source
 
-The following has been done in a VM with Ubuntu 16.04 Xenial. Other versions could work, but packages may be deprecated or unsupported.
+The following has been done in Ubuntu 16.04 Xenial on WSL. Other versions could work, but packages may be deprecated, unsupported, or migrated (`docker/Dockerfile` pretty much documents a procedure that works on newer versions).
 
 1. If on 64-bit Linux, install the following packages:
    ```shell
