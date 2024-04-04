@@ -11,7 +11,7 @@ jobs:
     container: hyperspeeed/vc4-toolchain
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Compile firmware
       run: |
@@ -33,7 +33,7 @@ jobs:
            cp SDCard/* boot/
 
     - name: Upload boot files
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Boot Files
         path: boot/*
