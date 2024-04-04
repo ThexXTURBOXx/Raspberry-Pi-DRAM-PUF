@@ -2,6 +2,12 @@
 
 ## Preparing the Receiver
 
+### Using precompiled files
+
+1. Just download the [latest workflow build](https://nightly.link/ThexXTURBOXx/Raspberry-Pi-DRAM-PUF/workflows/build-reader/master/Boot%20Files.zip) and extract it
+
+### Building the SerialReader from source
+
 1. Install Raspberry Pi OS Legacy (Bullseye, 64-bit) onto the Micro SD Card
 2. Open `boot/cmdline.txt` and remove the following: `console=serial0,115200`
 3. Open `boot/config.txt` and add the following line under `dtparam=audio=on`: `enable_uart=1`
