@@ -144,6 +144,16 @@ Image 6: The Relay Module
      ```shell
      ./SerialReader -s /dev/ttyS0 -g gpiochip0 -b 115200 -r 2 -t 5 -m 10 -o dump -p 0 -p 0 -p 0 -p C3 -p C38 -p 00000000 -p 0 -p 0 -p 120
      ```
+ - The parameters specified by `-p` are the following (in this order):
+     - `Mode` (0 = memory dump, ..., 4 = test params from kernel) - I would recommend 0
+     - `Address mode` (0 = BRC, 1 = RBC) - I would recommend 0
+     - `Function run location` (0 = CPU, 1 = GPU) - doesn't matter, I would recommend 0
+     - `PUF start address` (hexadecimal) - must be between C3000000 and DFFFFFFF
+     - `PUF end address` (hexadecimal) - must be between C3000000 and DFFFFFFF and `> PUF start address`
+     - `PUF init value` (hexadecimal)
+     - `Function to run` (0 = none, ..., 5 = mod) - should be 0 in order to avoid side channel effects
+     - `Function exec interval` (frequency = n*50µs) - doesn't matter, I would recommend 0
+     - `Decay time` (in seconds) - I would recommend a value between `90` and ~`900`, for values below there are not enough bitflips, for values above, the bitflips do not really change anymore
  - To use the program with Java via JNI, set `COMPILE_JNI` to `1` within `CMakeLists.txt`, re-build the program (it should build an additional library) and run `sudo cp libSerialReader.so /usr/lib` to install it into the proper path.
  - Raspberry Pis usually have two GPIO chips: `gpiochip0` is the main one (the one which is connected to the main GPIO pin header) and `gpiochip1` is a secondary one which I don't know yet where it is on the Pi hardware itself.
  - You can use the programs in the `JavaPrograms` folder (old versions of DRAM-PUF-CLI) to examine existing DRAM dumps. Usages:
