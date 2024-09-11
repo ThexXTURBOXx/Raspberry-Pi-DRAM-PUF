@@ -33,6 +33,7 @@ jobs:
         copy_artifact_dest: ./SerialReader
         image_additional_mb: 1024
         commands: |
+            apt update
             apt install --no-install-recommends -y cmake make g++ default-jdk libgpiod-dev git
             git clone https://github.com/Taywee/args.git
             cd args
