@@ -35,7 +35,7 @@ To the best of our knowledge, this is the first open-source DRAM PUF for a Raspb
     ```shell
     cd TARGET_FOLDER
     sudo apt update && sudo apt full-upgrade -y
-    sudo apt install git libpgiod-dev -y
+    sudo apt install git libgpiod-dev -y
     git clone https://github.com/Taywee/args.git
     cd args
     sudo make install DESTDIR=/usr
