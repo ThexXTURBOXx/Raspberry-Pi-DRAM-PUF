@@ -2,6 +2,7 @@ FROM ubuntu
 
 # Enable source repos for build-dep gcc below
 RUN sed -i 's/# deb-src/deb-src/g' /etc/apt/sources.list
+RUN sed -i 's/Types: deb/Types: deb deb-src/g' /etc/apt/sources.list.d/ubuntu.sources
 
 RUN apt update
 
@@ -9,7 +10,7 @@ RUN apt update
 
 # START: Modified version of rocstreaming/toolchain-arm-linux-gnueabihf:gcc-4.9
 
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt install -y \
     wget \
